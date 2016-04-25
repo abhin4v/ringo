@@ -2,7 +2,7 @@ name:                ringo
 version:             0.1.0.0
 synopsis:            OLTP to OLAP schema transformer
 description:         Tool to transform OLTP schemas to OLAP star schemas automatically
-homepage:            http://github.com/quintype/ringo
+homepage:            http://github.com/abhin4v/ringo
 license:             MIT
 license-file:        LICENSE
 author:              Abhinav Sarkar
@@ -76,4 +76,4 @@ test-suite ringo-test
 
 source-repository head
   type:     git
-  location: https://github.com/quintype/ringo
+  location: https://github.com/abhin4v/ringo
