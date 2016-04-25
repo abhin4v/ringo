@@ -7,7 +7,7 @@ license:             MIT
 license-file:        LICENSE
 author:              Abhinav Sarkar
 maintainer:          abhinav@abhinavsarkar.net
-copyright:           2015-2016 Quintype Inc, Nilenso Software LLP
+copyright:           2015-2016 Quintype Inc, Nilenso Software LLP, Abhinav Sarkar
 category:            SQL
 build-type:          Simple
 -- extra-source-files:
