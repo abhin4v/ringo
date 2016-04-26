@@ -1,3 +1,0 @@
-[submodule "lib/hssqlppp"]
-	path = lib/hssqlppp
-	url = https://github.com/JakeWheat/hssqlppp.git
