@@ -4,7 +4,7 @@ synopsis:            OLTP to OLAP schema transformer
 description:         Tool to transform OLTP schemas to OLAP star schemas automatically
 homepage:            http://github.com/abhin4v/ringo
 license:             MIT
-license-file:        ../LICENSE
+license-file:        LICENSE
 author:              Abhinav Sarkar
 maintainer:          abhinav@abhinavsarkar.net
 copyright:           2015-2016 Quintype Inc, Nilenso Software LLP, Abhinav Sarkar
@@ -32,7 +32,7 @@ executable ringo
                        Cabal                >=1.18    && <1.23,
                        template-haskell     >=2.9     && <2.11,
                        ringo
-  ghc-options:         -Wall -Werror -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
+  ghc-options:         -Wall -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
                        -fno-warn-orphans -funbox-strict-fields -O2
   default-language:    Haskell2010
 

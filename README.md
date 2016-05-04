@@ -9,7 +9,7 @@
  - Git clone this repository:
  
    ```sh
-   > git clone --recursive https://github.com/abhin4v/ringo
+   > git clone https://github.com/abhin4v/ringo
    ```
  - Run the following commands in the terminal:
  
