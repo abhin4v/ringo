@@ -1,10 +1,10 @@
-name:                ringo
+name:                ringo-app
 version:             0.1.0.0
 synopsis:            OLTP to OLAP schema transformer
 description:         Tool to transform OLTP schemas to OLAP star schemas automatically
 homepage:            http://github.com/abhin4v/ringo
 license:             MIT
-license-file:        LICENSE
+license-file:        ../LICENSE
 author:              Abhinav Sarkar
 maintainer:          abhinav@abhinavsarkar.net
 copyright:           2015-2016 Quintype Inc, Nilenso Software LLP, Abhinav Sarkar
@@ -13,33 +13,8 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.18
 
-library
-  hs-source-dirs:      src
-  exposed-modules:     Ringo,
-                       Ringo.Types
-  other-modules:       Ringo.Extractor,
-                       Ringo.Generator,
-                       Ringo.Validator,
-                       Ringo.Extractor.Internal,
-                       Ringo.Generator.Internal,
-                       Ringo.Generator.Sql,
-                       Ringo.Generator.Create,
-                       Ringo.Generator.Populate.Dimension,
-                       Ringo.Generator.Populate.Fact,
-                       Ringo.Types.Internal,
-                       Ringo.Utils
-  build-depends:       base           >=4.7 && <5,
-                       text           >=1.2 && <1.3,
-                       containers     >=0.5 && <0.6,
-                       mtl            >=2.1 && <2.3,
-                       raw-strings-qq >=1.0 && <1.2,
-                       hssqlppp       ==0.6.0
-  ghc-options:         -Wall -Werror -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
-                       -fno-warn-orphans -funbox-strict-fields -O2
-  default-language:    Haskell2010
-
 executable ringo
-  hs-source-dirs:      app
+  hs-source-dirs:      src
   other-modules:       Ringo.ArgParser,
                        Ringo.InputParser,
                        Distribution.CurrentPackageDescription
@@ -59,19 +34,6 @@ executable ringo
                        ringo
   ghc-options:         -Wall -Werror -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
                        -fno-warn-orphans -funbox-strict-fields -O2
-  default-language:    Haskell2010
-
-test-suite ringo-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test, src
-  main-is:             doctests.hs
-  if impl(ghc >= 7.10)
-    build-depends:       base
-                       , ringo
-                       , pretty-show >=1.6 && <1.7
-                       , doctest     >=0.9 && <0.12
-  else
-    buildable: False
   default-language:    Haskell2010
 
 source-repository head
