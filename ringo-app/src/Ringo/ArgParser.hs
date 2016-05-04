@@ -9,8 +9,9 @@ import qualified Distribution.PackageDescription as P
 import qualified Distribution.CurrentPackageDescription as P
 import qualified Distribution.Text as DText
 
-import Data.List                              (intercalate)
+import Data.List           (intercalate)
 import Options.Applicative
+import System.Environment  (getProgName)
 
 import Ringo.Types
 
@@ -100,20 +101,19 @@ progArgsParser =
                     <> action "directory"
                     <> help "Output directory")
 
-progName :: String
-progName = $(P.getField (DText.display . P.pkgName . P.package))
-
-versionParser :: Parser (a -> a)
-versionParser = infoOption (progName ++ " " ++ version)
+versionParser :: String -> Parser (a -> a)
+versionParser progName = infoOption (progName ++ " " ++ version)
   (long "version"
    <> help "Print version information")
   where
     version = $(P.getField (DText.display . P.pkgVersion . P.package))
 
 parseArgs :: IO ProgArgs
-parseArgs = execParser $
-  info (helper <*> versionParser <*> progArgsParser)
-       (fullDesc
-        <> progDesc $(P.getField P.description)
-        <> header (progName ++ " - " ++ $(P.getField P.synopsis))
-        <> footer ("© " ++ $(P.getField P.copyright) ++ ". " ++ $(P.getField P.homepage)))
+parseArgs = do
+  progName <- getProgName
+  execParser $
+    info (helper <*> versionParser progName <*> progArgsParser)
+         (fullDesc
+          <> progDesc $(P.getField P.description)
+          <> header (progName ++ " - " ++ $(P.getField P.synopsis))
+          <> footer ("© " ++ $(P.getField P.copyright) ++ ". " ++ $(P.getField P.homepage)))
