@@ -29,7 +29,7 @@ import qualified Ringo.Validator as V
 -- >>> import qualified Data.Map as Map
 -- >>> import qualified Data.Text as Text
 -- >>> import Data.List (nub)
--- >>> import Text.Show.Pretty
+-- >>> import Data.Monoid ((<>))
 -- >>> :{
 --let sessionEventsTable =
 --      Table { tableName        = "session_events"
@@ -198,27 +198,26 @@ extractDimensionTables env = flip runReader env . E.extractDimensionTables
 
 -- |
 --
--- >>> putStrLn . ppShow $ extractDependencies env sessionFact
--- fromList
---   [ ( "dim_geo" , [ "session_events" ] )
---   , ( "dim_user_agent" , [ "session_events" ] )
---   , ( "fact_session_by_minute"
---     , [ "session_events" , "dim_user_agent" , "dim_geo" ]
---     )
---   ]
--- >>> putStrLn . ppShow $ extractDependencies env pageViewFact
--- fromList
---   [ ( "dim_page_type" , [ "page_view_events" ] )
---   , ( "fact_page_view_by_minute"
---     , [ "page_view_events"
---       , "session_events"
---       , "dim_page_type"
---       , "referrers"
---       , "dim_user_agent"
---       , "dim_geo"
---       ]
---     )
---   ]
+-- >>> let depsToStr = map ((\(k, vs) -> Text.unpack $ k <> ":\n  - " <> Text.intercalate "\n  - " vs)) . Map.toList
+-- >>> mapM_ putStrLn . depsToStr $ extractDependencies env sessionFact
+-- dim_geo:
+--   - session_events
+-- dim_user_agent:
+--   - session_events
+-- fact_session_by_minute:
+--   - session_events
+--   - dim_user_agent
+--   - dim_geo
+-- >>> mapM_ putStrLn . depsToStr $ extractDependencies env pageViewFact
+-- dim_page_type:
+--   - page_view_events
+-- fact_page_view_by_minute:
+--   - page_view_events
+--   - session_events
+--   - dim_page_type
+--   - referrers
+--   - dim_user_agent
+--   - dim_geo
 extractDependencies :: Env -> Fact -> Dependencies
 extractDependencies env = flip runReader env . E.extractDependencies
 
