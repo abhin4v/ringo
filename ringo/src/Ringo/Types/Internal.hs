@@ -3,7 +3,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 module Ringo.Types.Internal where
 
@@ -98,18 +97,6 @@ data FactColumnType a where
   FactMin           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType FCTSourceColumn
 
 deriving instance Show (FactColumnType a)
-
-pattern DimTimeV col           <- FactColumn col DimTime
-pattern NoDimIdV col           <- FactColumn col NoDimId
-pattern TenantIdV col          <- FactColumn col TenantId
-pattern DimIdV col             <- FactColumn col DimId {..}
-pattern DimValV col            <- FactColumn col DimVal {..}
-pattern FactCountV col         <- FactColumn col FactCount {..}
-pattern FactCountDistinctV col <- FactColumn col FactCountDistinct {..}
-pattern FactSumV col           <- FactColumn col FactSum {..}
-pattern FactAverageV col       <- FactColumn col FactAverage {..}
-pattern FactMaxV col           <- FactColumn col FactMax {..}
-pattern FactMinV col           <- FactColumn col FactMin {..}
 
 data FactColumn = forall a. FactColumn
                   { factColTargetColumn :: !ColumnName

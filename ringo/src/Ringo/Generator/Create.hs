@@ -2,7 +2,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 module Ringo.Generator.Create (dimensionTableDefnSQL, factTableDefnSQL) where
 
@@ -78,8 +77,8 @@ factTableIndexStmts fact table = do
     Settings {..} <- asks envSettings
     tables        <- asks envTables
 
-    let dimTimeCol           = head [ cName | DimTimeV cName <- factColumns fact ]
-        tenantIdCol          = listToMaybe [ cName | TenantIdV cName <- factColumns fact ]
+    let dimTimeCol           = head [ cName | FactColumn cName DimTime <- factColumns fact ]
+        tenantIdCol          = listToMaybe [ cName | FactColumn cName TenantId <- factColumns fact ]
         tabName              = tableName table <> settingTableNameSuffixTemplate
         dimTimeColName cName = timeUnitColumnName settingDimTableIdColumnName cName settingTimeUnit
 

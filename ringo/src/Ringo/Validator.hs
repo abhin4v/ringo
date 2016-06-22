@@ -56,19 +56,19 @@ validateFact Fact {..} = do
       parentVs          <- concat <$> mapM checkFactParents factParentNames
       let colVs         = concatMap (checkColumn tables table) factColumns
           timeVs        = [ MissingTimeColumn factTableName
-                            | null ([ cName | DimTimeV cName <- factColumns ] :: [ColumnName]) ]
+                            | null ([ cName | FactColumn cName DimTime <- factColumns ] :: [ColumnName]) ]
           notNullVs     = [ MissingNotNullConstraint factTableName cName
-                            | DimTimeV cName <- factColumns
-                            , let col        = findColumn cName (tableColumns table)
+                            | FactColumn cName DimTime <- factColumns
+                            , let col                  = findColumn cName (tableColumns table)
                             , isJust col
                             , columnNullable (fromJust col) == Null ]
 
           typeDefaultVs =
             [ MissingTypeDefault cType
-              | cName   <- [ c | DimValV   c <- factColumns ]
-                        ++ [ c | NoDimIdV  c <- factColumns ]
-                        ++ [ c | TenantIdV c <- factColumns ]
-                        ++ [ c | DimIdV    c <- factColumns ]
+              | cName   <- [ c | FactColumn c DimVal {..} <- factColumns ]
+                        ++ [ c | FactColumn c NoDimId     <- factColumns ]
+                        ++ [ c | FactColumn c TenantId    <- factColumns ]
+                        ++ [ c | FactColumn c DimId {..}  <- factColumns ]
               , let col = findColumn cName (tableColumns table)
               , isJust col
               , let cType = columnType $ fromJust col

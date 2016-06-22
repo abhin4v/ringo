@@ -5,7 +5,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 module Ringo.Generator.Populate.Fact (factTablePopulateSQL) where
 
@@ -201,7 +200,7 @@ factTablePopulateStmts popMode fact = do
           . map (factTableName . fst)
           $ allDims
 
-        timeCol             = eqi fTableName $ head [ cName | DimTimeV cName <- factColumns fact ]
+        timeCol             = eqi fTableName $ head [ cName | FactColumn cName DimTime <- factColumns fact ]
 
         extFactTableName    = suffixTableName popMode settingTableNameSuffixTemplate
           $ extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
