@@ -3,6 +3,8 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Ringo.Types.Internal where
 
@@ -78,23 +80,20 @@ data Fact = Fact
             , factColumns         :: ![FactColumn]
             } deriving (Show)
 
-data FCTNone
-data FCTTargetTable
-data FCTMaybeSourceColumn
-data FCTSourceColumn
+data FactColumnKind =  FCKNone | FCKTargetTable | FCKMaybeSourceColumn | FCKSourceColumn
 
-data FactColumnType a where
-  DimTime           ::                                                        FactColumnType FCTNone
-  NoDimId           ::                                                        FactColumnType FCTNone
-  TenantId          ::                                                        FactColumnType FCTNone
-  DimId             :: { factColTargetTable  :: !TableName }               -> FactColumnType FCTTargetTable
-  DimVal            :: { factColTargetTable  :: !TableName }               -> FactColumnType FCTTargetTable
-  FactCount         :: { factColMaybeSourceColumn :: !(Maybe ColumnName) } -> FactColumnType FCTMaybeSourceColumn
-  FactCountDistinct :: { factColMaybeSourceColumn :: !(Maybe ColumnName) } -> FactColumnType FCTMaybeSourceColumn
-  FactSum           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType FCTSourceColumn
-  FactAverage       :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType FCTSourceColumn
-  FactMax           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType FCTSourceColumn
-  FactMin           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType FCTSourceColumn
+data FactColumnType (a :: FactColumnKind) where
+  DimTime           ::                                                        FactColumnType 'FCKNone
+  NoDimId           ::                                                        FactColumnType 'FCKNone
+  TenantId          ::                                                        FactColumnType 'FCKNone
+  DimId             :: { factColTargetTable  :: !TableName }               -> FactColumnType 'FCKTargetTable
+  DimVal            :: { factColTargetTable  :: !TableName }               -> FactColumnType 'FCKTargetTable
+  FactCount         :: { factColMaybeSourceColumn :: !(Maybe ColumnName) } -> FactColumnType 'FCKMaybeSourceColumn
+  FactCountDistinct :: { factColMaybeSourceColumn :: !(Maybe ColumnName) } -> FactColumnType 'FCKMaybeSourceColumn
+  FactSum           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType 'FCKSourceColumn
+  FactAverage       :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType 'FCKSourceColumn
+  FactMax           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType 'FCKSourceColumn
+  FactMin           :: { factColSourceColumn  :: !ColumnName }             -> FactColumnType 'FCKSourceColumn
 
 deriving instance Show (FactColumnType a)
 
