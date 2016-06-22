@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
@@ -27,14 +26,15 @@ main = do
   result        <- parseInput progInputFile
   case result of
     Left err                        -> putStrLn err >> exitFailure
-    Right (tables, facts, defaults) -> do
+    Right (tables, facts, defaults) ->
       case makeEnv tables facts progSettings defaults of
         Left errors -> mapM_ print errors           >> exitFailure
         Right env   -> writeFiles progOutputDir env >> exitSuccess
 
 writeFiles :: FilePath -> Env -> IO ()
-writeFiles outputDir env@(envView -> EnvV{..}) = do
-  let Settings{..} = envSettings
+writeFiles outputDir env = do
+  let Settings{..} = envSettings env
+
   forM_ sqls $ \(sqlType, table, sql) -> do
     let dirName = outputDir </> map toLower (show sqlType)
     createDirectoryIfMissing True dirName
@@ -43,22 +43,25 @@ writeFiles outputDir env@(envView -> EnvV{..}) = do
   BS.writeFile (outputDir </> Text.unpack settingDependenciesJSONFileName)
     . encode
     . foldl (\acc -> Map.union acc . extractDependencies env) Map.empty
-    $ envFacts
+    $ facts
 
   BS.writeFile (outputDir </> Text.unpack settingDimensionJSONFileName) . encode $
-    [ tableName table | (_, tabs) <- dimTables, table <- tabs , table `notElem` envTables ]
+    [ tableName table | (_, tabs) <- dimTables, table <- tabs , table `notElem` tables ]
 
   BS.writeFile (outputDir </> Text.unpack settingFactsJSONFileName) . encode $
     [ tableName table | (_, table) <- factTables ]
 
   where
-    dimTables  = [ (fact, extractDimensionTables env fact) | fact <- envFacts ]
-    factTables = [ (fact, extractFactTable env fact)       | fact <- envFacts, factTablePersistent fact ]
+    facts      = envFacts env
+    tables     = envTables env
+
+    dimTables  = [ (fact, extractDimensionTables env fact) | fact <- facts ]
+    factTables = [ (fact, extractFactTable env fact)       | fact <- facts, factTablePersistent fact ]
 
     dimTableDefnSQLs    = [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefnSQL env table)
                             | (_, tabs) <- dimTables
                             , table     <- tabs
-                            , table `notElem` envTables ]
+                            , table `notElem` tables ]
 
     factTableDefnSQLs   = [ (Create , tableName table, unlines . map sqlStr $ factTableDefnSQL env fact table)
                             | (fact, table) <- factTables ]
@@ -67,7 +70,7 @@ writeFiles outputDir env@(envView -> EnvV{..}) = do
       [ (typ , tableName table, sqlStr $ gen env fact (tableName table))
         | (fact, tabs) <- dimTables
         , table        <- tabs
-        , table `notElem` envTables ]
+        , table `notElem` tables ]
 
     factTablePopulateSQLs typ gen = [ (typ, tableName table, unlines . map sqlStr  $ gen env fact)
                                       | (fact, table) <- factTables ]

@@ -168,17 +168,24 @@ data ValidationError = MissingTable             !TableName
 
 type TypeDefaults = Map Text Text
 
-data Env = Env ![Table] ![Fact] !Settings !TypeDefaults
+data Env = Env
+           { _envTables       :: ![Table]
+           , _envFacts        :: ![Fact]
+           , _envSettings     :: !Settings
+           , _envTypeDefaults :: !TypeDefaults
+           } deriving (Show)
 
-data EnvV = EnvV
-            { envTables       :: ![Table]
-            , envFacts        :: ![Fact]
-            , envSettings     :: !Settings
-            , envTypeDefaults :: !TypeDefaults
-            } deriving (Show)
+envTables       :: Env -> [Table]
+envTables       = _envTables
 
-envView :: Env -> EnvV
-envView (Env tables facts settings typeDefaults) = EnvV tables facts settings typeDefaults
+envFacts        :: Env -> [Fact]
+envFacts        = _envFacts
+
+envSettings     :: Env -> Settings
+envSettings     = _envSettings
+
+envTypeDefaults :: Env -> TypeDefaults
+envTypeDefaults = _envTypeDefaults
 
 data TablePopulationMode = FullPopulation | IncrementalPopulation deriving (Eq, Show)
 

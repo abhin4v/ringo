@@ -1,8 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Ringo.Types
   ( ColumnName, ColumnType, TableName
@@ -11,7 +9,7 @@ module Ringo.Types
   , Fact(..), FactColumnType(..), FactColumn(..), factSourceColumnName
   , Settings(..), defSettings
   , ValidationError(..), TypeDefaults
-  , Env, EnvV(..), envView
-  , TablePopulationMode(..), Dependencies) where
+  , Env, envTables, envFacts, envSettings, envTypeDefaults,
+  TablePopulationMode(..), Dependencies) where
 
 import Ringo.Types.Internal

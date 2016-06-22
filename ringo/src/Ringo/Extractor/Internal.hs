@@ -13,14 +13,14 @@ import qualified Data.Text as Text
 import Control.Applicative  ((<$>))
 #endif
 
-import Control.Monad.Reader (Reader, asks, withReader)
+import Control.Monad.Reader (Reader, asks)
 import Data.Function        (on)
 import Data.Maybe           (mapMaybe, fromMaybe, fromJust, catMaybes)
 import Data.Monoid          ((<>))
 import Data.List            (nub, nubBy, find)
 import Data.Text            (Text)
 
-import Ringo.Types
+import Ringo.Types.Internal
 
 findTable :: TableName -> [Table] -> Maybe Table
 findTable tName = find ((== tName) . tableName)
@@ -59,7 +59,7 @@ idColTypeToFKIdColType typ = case Text.toLower typ of
   _             -> typ
 
 extractDimensionTables :: Fact -> Reader Env [Table]
-extractDimensionTables fact = withReader envView $ do
+extractDimensionTables fact = do
   settings  <- asks envSettings
   tables    <- asks envTables
   let table = fromJust . findTable (factTableName fact) $ tables
@@ -99,5 +99,4 @@ extractAllDimensionTables fact = do
   parentDims <- concat <$> mapM extract (factParentNames fact)
   return . nubBy ((==) `on` snd) $ myDims ++ parentDims
   where
-    extract fName =
-      asks (envFacts . envView) >>= extractAllDimensionTables . fromJust . findFact fName
+    extract fName = asks envFacts >>= extractAllDimensionTables . fromJust . findFact fName
