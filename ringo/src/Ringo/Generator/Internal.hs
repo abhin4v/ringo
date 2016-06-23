@@ -7,19 +7,13 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Database.HsSqlPpp.Syntax (ScalarExpr)
-import Data.List                (find)
+import Data.List                (find, nub)
 import Data.Monoid              ((<>))
 import Data.Text                (Text)
 
 import Ringo.Extractor.Internal
 import Ringo.Generator.Sql
 import Ringo.Types
-
-dimColumnMapping :: Text -> Fact -> TableName -> [(ColumnName, ColumnName)]
-dimColumnMapping dimPrefix fact dimTableName =
-  [ (dimColumnName factColTargetTable factColTargetColumn, factColTargetColumn)
-    | FactColumn { factColType = DimVal {..}, ..} <- factColumns fact
-    , dimPrefix <> factColTargetTable == dimTableName ]
 
 coalesceColumn :: TypeDefaults -> TableName -> Column -> ScalarExpr
 coalesceColumn defaults tName Column{..} =

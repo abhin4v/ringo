@@ -35,6 +35,18 @@ dimColumnName :: Text -> ColumnName -> ColumnName
 dimColumnName dimName columnName =
   fromMaybe columnName . Text.stripPrefix (dimName <> "_") $ columnName
 
+dimColumnMapping :: Text -> Fact -> TableName -> [(ColumnName, ColumnName)]
+dimColumnMapping dimPrefix fact dimTableName =
+  [ (dimColumnName factColTargetTable factColTargetColumn, factColTargetColumn)
+    | FactColumn { factColType = DimVal {..}, ..} <- factColumns fact
+    , dimPrefix <> factColTargetTable == dimTableName ]
+
+dimColumnMappings :: Text -> Fact -> [(TableName, [(ColumnName, ColumnName)])]
+dimColumnMappings dimPrefix fact =
+  nub [ (dimTableName, dimColumnMapping dimPrefix fact dimTableName)
+        | FactColumn { factColType = DimVal {..}, ..} <- factColumns fact
+        , let dimTableName = dimPrefix <> factColTargetTable ]
+
 timeUnitColumnName :: Text -> ColumnName -> TimeUnit -> ColumnName
 timeUnitColumnName dimIdColName colName timeUnit =
   colName <> "_" <> timeUnitName timeUnit <> "_" <> dimIdColName

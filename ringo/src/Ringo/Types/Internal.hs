@@ -161,6 +161,7 @@ data ValidationError = MissingTable             !TableName
                      | MissingColumn            !TableName !ColumnName
                      | DuplicateColumn          !TableName !ColumnName
                      | MissingTimeColumn        !TableName
+                     | DuplicateDimension       !TableName
                      | MissingNotNullConstraint !TableName !ColumnName
                      | MissingTypeDefault       !Text
                      deriving (Eq, Show)

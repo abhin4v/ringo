@@ -15,8 +15,9 @@ import Control.Applicative ((<$>))
 #endif
 
 import Control.Monad.Reader (Reader, ask, runReader)
+import Data.Function        (on)
 import Data.Maybe           (isJust, fromJust)
-import Data.List            (nub, group, sort)
+import Data.List            (nub, group, groupBy, sort)
 
 import Ringo.Extractor.Internal
 import Ringo.Types
@@ -92,7 +93,7 @@ validateFact Fact {..} = do
       _                                  -> []
 
 validateEnv :: [Table] -> [Fact] -> Settings -> TypeDefaults -> Either [ValidationError] Env
-validateEnv tables facts settings typeDefaults =
+validateEnv tables facts settings@Settings {..} typeDefaults =
   flip runReader (RawEnv tables facts settings typeDefaults) $ do
     tableVs <- concat <$> mapM validateTable tables
     factVs  <- concat <$> mapM validateFact facts
@@ -101,7 +102,13 @@ validateEnv tables facts settings typeDefaults =
     let dupColVs   = [ DuplicateColumn tableName col
                        | Table{..} <- tables
                        , col       <- findDups . map columnName $ tableColumns ]
-    let vs = nub $ tableVs ++ factVs ++ dupTableVs ++ dupFactVs ++ dupColVs
+    let dupDimVs   = facts
+                     >>- concatMap (dimColumnMappings settingDimPrefix)
+                     >>> sort
+                     >>> groupBy ((==) `on` fst)
+                     >>> filter (map snd >>> nub >>> length >>> (/= 1))
+                     >>> map (head >>> fst >>> DuplicateDimension)
+        vs = nub $ tableVs ++ factVs ++ dupTableVs ++ dupFactVs ++ dupColVs ++ dupDimVs
     if null vs
       then return . Right $ Env tables facts settings typeDefaults
       else return . Left  $ vs
