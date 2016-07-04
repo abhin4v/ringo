@@ -45,7 +45,7 @@ extractFactTable fact = do
           FactMax {..}           -> [ notNullSourceColumnRename factColSourceColumn cName ]
           FactMin {..}           -> [ notNullSourceColumnRename factColSourceColumn cName ]
           FactAverage {..}       ->
-            [ Column (cName <> settingAvgCountColumSuffix) countColType NotNull
+            [ Column (cName <> settingAvgCountColumnSuffix) countColType NotNull
             , notNullSourceColumnRename factColSourceColumn (cName <> settingAvgSumColumnSuffix)
             ]
           _                      -> []

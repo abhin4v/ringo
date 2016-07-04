@@ -121,7 +121,7 @@ data Settings = Settings
                 { settingDimPrefix                  :: !Text
                 , settingFactPrefix                 :: !Text
                 , settingTimeUnit                   :: !TimeUnit
-                , settingAvgCountColumSuffix        :: !Text
+                , settingAvgCountColumnSuffix       :: !Text
                 , settingAvgSumColumnSuffix         :: !Text
                 , settingDimTableIdColumnName       :: !Text
                 , settingDimTableIdColumnType       :: !Text
@@ -140,7 +140,7 @@ defSettings = Settings
               { settingDimPrefix                  = "dim_"
               , settingFactPrefix                 = "fact_"
               , settingTimeUnit                   = Minute
-              , settingAvgCountColumSuffix        = "_count"
+              , settingAvgCountColumnSuffix       = "_count"
               , settingAvgSumColumnSuffix         = "_sum"
               , settingDimTableIdColumnName       = "id"
               , settingDimTableIdColumnType       = "serial"

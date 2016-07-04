@@ -162,7 +162,7 @@ factTablePopulateStmts popMode fact = do
           FactMax {..}           -> [ (cName, app' "max" factColSourceColumn, False) ]
           FactMin {..}           -> [ (cName, app' "min" factColSourceColumn, False) ]
           FactAverage {..}       ->
-            [ ( cName <> settingAvgCountColumSuffix, app' "count" factColSourceColumn, False )
+            [ ( cName <> settingAvgCountColumnSuffix, app' "count" factColSourceColumn, False )
             , ( cName <> settingAvgSumColumnSuffix , app' "sum" factColSourceColumn  , False)
             ]
           _                      -> []

@@ -43,7 +43,7 @@ settingsParser = let Settings {..} = defSettings
                          <> help ("Time unit granularity for fact tables. Possible values: "
                                     ++ intercalate ", " timeunits))
      <*> minorOption "avg-count-col-suffix"
-                     settingAvgCountColumSuffix
+                     settingAvgCountColumnSuffix
                      "Suffix for average count columns"
      <*> minorOption "avg-sum-col-suffix"
                      settingAvgSumColumnSuffix
