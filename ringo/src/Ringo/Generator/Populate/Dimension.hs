@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GADTs #-}
 
-module Ringo.Generator.Populate.Dimension (dimensionTablePopulateSQL) where
+module Ringo.Generator.Populate.Dimension (dimensionTablePopulationSQL) where
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
@@ -16,12 +16,12 @@ import Ringo.Generator.Internal
 import Ringo.Generator.Sql
 import Ringo.Types.Internal
 
-dimensionTablePopulateSQL :: TablePopulationMode -> Fact -> TableName -> Reader Env Text
-dimensionTablePopulateSQL popMode fact dimTableName =
-  ppStatement <$> dimensionTablePopulateStmt popMode fact dimTableName
+dimensionTablePopulationSQL :: TablePopulationMode -> Fact -> TableName -> Reader Env Text
+dimensionTablePopulationSQL popMode fact dimTableName =
+  ppStatement <$> dimensionTablePopulationStatement popMode fact dimTableName
 
-dimensionTablePopulateStmt :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
-dimensionTablePopulateStmt popMode fact dimTableName = do
+dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
+dimensionTablePopulationStatement popMode fact dimTableName = do
   Settings {..}    <- asks envSettings
   tables           <- asks envTables
   defaults         <- asks envTypeDefaults

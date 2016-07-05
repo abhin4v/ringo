@@ -9,10 +9,10 @@ module Ringo
        , extractFactTable
        , extractDimensionTables
        , extractDependencies
-       , dimensionTableDefnSQL
-       , factTableDefnSQL
-       , dimensionTablePopulateSQL
-       , factTablePopulateSQL
+       , dimensionTableDefinitionSQL
+       , factTableDefinitionSQL
+       , dimensionTablePopulationSQL
+       , factTablePopulationSQL
        ) where
 
 import Control.Monad.Reader (runReader)
@@ -224,7 +224,7 @@ extractDependencies env = flip runReader env . E.extractDependencies
 -- |
 --
 -- >>> let dimTables = filter (`notElem` tables) . nub . concatMap (extractDimensionTables env) $ facts
--- >>> let sqls = map (dimensionTableDefnSQL env) dimTables
+-- >>> let sqls = map (dimensionTableDefinitionSQL env) dimTables
 -- >>> mapM_ (\sqls -> mapM_ (putStr . Text.unpack) sqls >> putStrLn "--------" ) sqls
 -- create table dim_geo (
 --   id serial not null,
@@ -277,13 +277,13 @@ extractDependencies env = flip runReader env . E.extractDependencies
 -- alter table dim_page_type add unique (page_type);
 -- <BLANKLINE>
 -- --------
-dimensionTableDefnSQL :: Env -> Table -> [Text]
-dimensionTableDefnSQL env = flip runReader env . G.dimensionTableDefnSQL
+dimensionTableDefinitionSQL :: Env -> Table -> [Text]
+dimensionTableDefinitionSQL env = flip runReader env . G.dimensionTableDefinitionSQL
 
 -- |
 --
 -- >>> let storySessionFactTable = extractFactTable env sessionFact
--- >>> let sqls = factTableDefnSQL env sessionFact storySessionFactTable
+-- >>> let sqls = factTableDefinitionSQL env sessionFact storySessionFactTable
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- create table fact_session_by_minute (
 --   created_at_minute_id bigint not null,
@@ -308,7 +308,7 @@ dimensionTableDefnSQL env = flip runReader env . G.dimensionTableDefnSQL
 -- create index  on fact_session_by_minute (user_agent_id)
 -- ;
 -- >>> let pageViewFactTable = extractFactTable env pageViewFact
--- >>> let sqls = factTableDefnSQL env pageViewFact pageViewFactTable
+-- >>> let sqls = factTableDefinitionSQL env pageViewFact pageViewFactTable
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- create table fact_page_view_by_minute (
 --   created_at_minute_id bigint not null,
@@ -340,13 +340,13 @@ dimensionTableDefnSQL env = flip runReader env . G.dimensionTableDefnSQL
 -- ;
 -- create index  on fact_page_view_by_minute (user_agent_id)
 -- ;
-factTableDefnSQL :: Env -> Fact -> Table -> [Text]
-factTableDefnSQL env fact = flip runReader env . G.factTableDefnSQL fact
+factTableDefinitionSQL :: Env -> Fact -> Table -> [Text]
+factTableDefinitionSQL env fact = flip runReader env . G.factTableDefinitionSQL fact
 
 -- |
 --
 -- >>> let storySessionDimTableNames = map tableName $ extractDimensionTables env sessionFact
--- >>> let sqls = map (dimensionTablePopulateSQL FullPopulation env sessionFact) storySessionDimTableNames
+-- >>> let sqls = map (dimensionTablePopulationSQL FullPopulation env sessionFact) storySessionDimTableNames
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into dim_geo (country_name, city_name, continent_name)
 -- select distinct
@@ -374,7 +374,7 @@ factTableDefnSQL env fact = flip runReader env . G.factTableDefnSQL fact
 --     created_at < ?
 -- ;
 -- <BLANKLINE>
--- >>> let sqls = map (dimensionTablePopulateSQL IncrementalPopulation env sessionFact) storySessionDimTableNames
+-- >>> let sqls = map (dimensionTablePopulationSQL IncrementalPopulation env sessionFact) storySessionDimTableNames
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into dim_geo (country_name, city_name, continent_name)
 -- select
@@ -435,7 +435,7 @@ factTableDefnSQL env fact = flip runReader env . G.factTableDefnSQL fact
 -- ;
 -- <BLANKLINE>
 -- >>> let pageViewDimTableNames = map tableName . filter (`notElem` tables) $ extractDimensionTables env pageViewFact
--- >>> let sqls = map (dimensionTablePopulateSQL FullPopulation env pageViewFact) pageViewDimTableNames
+-- >>> let sqls = map (dimensionTablePopulationSQL FullPopulation env pageViewFact) pageViewDimTableNames
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into dim_page_type (page_type)
 -- select distinct
@@ -446,7 +446,7 @@ factTableDefnSQL env fact = flip runReader env . G.factTableDefnSQL fact
 --     (page_type is not null) and created_at < ?
 -- ;
 -- <BLANKLINE>
--- >>> let sqls = map (dimensionTablePopulateSQL IncrementalPopulation env pageViewFact) pageViewDimTableNames
+-- >>> let sqls = map (dimensionTablePopulationSQL IncrementalPopulation env pageViewFact) pageViewDimTableNames
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into dim_page_type (page_type)
 -- select
@@ -467,13 +467,13 @@ factTableDefnSQL env fact = flip runReader env . G.factTableDefnSQL fact
 --     dim_page_type.page_type is null
 -- ;
 -- <BLANKLINE>
-dimensionTablePopulateSQL :: TablePopulationMode -> Env -> Fact -> TableName -> Text
-dimensionTablePopulateSQL popMode env fact =
-  flip runReader env . G.dimensionTablePopulateSQL popMode fact
+dimensionTablePopulationSQL :: TablePopulationMode -> Env -> Fact -> TableName -> Text
+dimensionTablePopulationSQL popMode env fact =
+  flip runReader env . G.dimensionTablePopulationSQL popMode fact
 
 -- |
 --
--- >>> let sqls = factTablePopulateSQL FullPopulation env sessionFact
+-- >>> let sqls = factTablePopulationSQL FullPopulation env sessionFact
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into fact_session_by_minute (created_at_minute_id,
 --                                     publisher_id,
@@ -515,7 +515,7 @@ dimensionTablePopulateSQL popMode env fact =
 --     xxff_user_agent_id
 -- ;
 -- <BLANKLINE>
--- >>> let sqls = factTablePopulateSQL IncrementalPopulation env sessionFact
+-- >>> let sqls = factTablePopulationSQL IncrementalPopulation env sessionFact
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into fact_session_by_minute (created_at_minute_id,
 --                                     publisher_id,
@@ -557,7 +557,7 @@ dimensionTablePopulateSQL popMode env fact =
 --     xxff_user_agent_id
 -- ;
 -- <BLANKLINE>
--- >>> let sqls = factTablePopulateSQL FullPopulation env pageViewFact
+-- >>> let sqls = factTablePopulationSQL FullPopulation env pageViewFact
 -- >>> mapM_ (putStr . Text.unpack) sqls
 -- insert into fact_page_view_by_minute (created_at_minute_id,
 --                                       publisher_id,
@@ -615,6 +615,6 @@ dimensionTablePopulateSQL popMode env fact =
 --     xxff_user_agent_id
 -- ;
 -- <BLANKLINE>
-factTablePopulateSQL :: TablePopulationMode -> Env -> Fact -> [Text]
-factTablePopulateSQL popMode env =
-  flip runReader env . G.factTablePopulateSQL popMode
+factTablePopulationSQL :: TablePopulationMode -> Env -> Fact -> [Text]
+factTablePopulationSQL popMode env =
+  flip runReader env . G.factTablePopulationSQL popMode

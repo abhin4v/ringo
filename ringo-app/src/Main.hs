@@ -58,29 +58,29 @@ writeFiles outputDir env = do
     dimTables  = [ (fact, extractDimensionTables env fact) | fact <- facts ]
     factTables = [ (fact, extractFactTable env fact)       | fact <- facts, factTablePersistent fact ]
 
-    dimTableDefnSQLs    = [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefnSQL env table)
-                            | (_, tabs) <- dimTables
-                            , table     <- tabs
-                            , table `notElem` tables ]
+    dimTableDefinitionSQLs = [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefinitionSQL env table)
+                               | (_, tabs) <- dimTables
+                               , table     <- tabs
+                               , table `notElem` tables ]
 
-    factTableDefnSQLs   = [ (Create , tableName table, unlines . map sqlStr $ factTableDefnSQL env fact table)
-                            | (fact, table) <- factTables ]
+    factTableDefinitionSQLs = [ (Create , tableName table, unlines . map sqlStr $ factTableDefinitionSQL env fact table)
+                                | (fact, table) <- factTables ]
 
-    dimTablePopulateSQLs typ gen  =
+    dimTablePopulationSQLs typ gen  =
       [ (typ , tableName table, sqlStr $ gen env fact (tableName table))
         | (fact, tabs) <- dimTables
         , table        <- tabs
         , table `notElem` tables ]
 
-    factTablePopulateSQLs typ gen = [ (typ, tableName table, unlines . map sqlStr  $ gen env fact)
-                                      | (fact, table) <- factTables ]
+    factTablePopulationSQLs typ gen = [ (typ, tableName table, unlines . map sqlStr  $ gen env fact)
+                                        | (fact, table) <- factTables ]
 
-    sqls = concat [ dimTableDefnSQLs
-                  , factTableDefnSQLs
-                  , dimTablePopulateSQLs FullRefresh  $ dimensionTablePopulateSQL FullPopulation
-                  , dimTablePopulateSQLs IncRefresh   $ dimensionTablePopulateSQL IncrementalPopulation
-                  , factTablePopulateSQLs FullRefresh $ factTablePopulateSQL FullPopulation
-                  , factTablePopulateSQLs IncRefresh  $ factTablePopulateSQL IncrementalPopulation
+    sqls = concat [ dimTableDefinitionSQLs
+                  , factTableDefinitionSQLs
+                  , dimTablePopulationSQLs FullRefresh  $ dimensionTablePopulationSQL FullPopulation
+                  , dimTablePopulationSQLs IncRefresh   $ dimensionTablePopulationSQL IncrementalPopulation
+                  , factTablePopulationSQLs FullRefresh $ factTablePopulationSQL FullPopulation
+                  , factTablePopulationSQLs IncRefresh  $ factTablePopulationSQL IncrementalPopulation
                   ]
 
     sqlStr = Text.unpack

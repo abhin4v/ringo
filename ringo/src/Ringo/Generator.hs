@@ -1,8 +1,8 @@
 module Ringo.Generator
-       ( dimensionTableDefnSQL
-       , factTableDefnSQL
-       , dimensionTablePopulateSQL
-       , factTablePopulateSQL
+       ( dimensionTableDefinitionSQL
+       , factTableDefinitionSQL
+       , dimensionTablePopulationSQL
+       , factTablePopulationSQL
        ) where
 
 import Ringo.Generator.Create

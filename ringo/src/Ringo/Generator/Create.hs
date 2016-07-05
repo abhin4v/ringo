@@ -3,7 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Ringo.Generator.Create (dimensionTableDefnSQL, factTableDefnSQL) where
+module Ringo.Generator.Create (dimensionTableDefinitionSQL, factTableDefinitionSQL) where
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
@@ -19,8 +19,8 @@ import Ringo.Generator.Sql
 import Ringo.Types.Internal
 import Ringo.Utils
 
-tableDefnStmts :: Table -> Reader Env [Statement]
-tableDefnStmts Table {..} = do
+tableDefinitionStatements :: Table -> Reader Env [Statement]
+tableDefinitionStatements Table {..} = do
   Settings {..} <- asks envSettings
   let tabName  = tableName <> settingTableNameSuffixTemplate
 
@@ -44,17 +44,17 @@ tableDefnStmts Table {..} = do
 
   return $ tableSQL : map constraintDefnSQL tableConstraints
 
-tableDefnSQL :: Table -> (Table -> Reader Env [Statement]) -> Reader Env [Text]
-tableDefnSQL table indexFn = do
-  ds <- map ppStatement <$> tableDefnStmts table
+tableDefinitionSQL :: Table -> (Table -> Reader Env [Statement]) -> Reader Env [Text]
+tableDefinitionSQL table indexFn = do
+  ds <- map ppStatement <$> tableDefinitionStatements table
   is <- map (\st -> ppStatement st <> ";\n") <$> indexFn table
   return $ ds ++ is
 
-dimensionTableDefnSQL :: Table -> Reader Env [Text]
-dimensionTableDefnSQL table = tableDefnSQL table dimensionTableIndexStmts
+dimensionTableDefinitionSQL :: Table -> Reader Env [Text]
+dimensionTableDefinitionSQL table = tableDefinitionSQL table dimensionTableIndexStatements
 
-dimensionTableIndexStmts :: Table -> Reader Env [Statement]
-dimensionTableIndexStmts Table {..} = do
+dimensionTableIndexStatements :: Table -> Reader Env [Statement]
+dimensionTableIndexStatements Table {..} = do
   Settings {..} <- asks envSettings
   let tabName        = tableName <> settingTableNameSuffixTemplate
       tablePKColName = head [ cName | PrimaryKey cName <- tableConstraints ]
@@ -63,11 +63,11 @@ dimensionTableIndexStmts Table {..} = do
   return [ CreateIndexTSQL ea (nmc "") (name tabName) [nmc cName]
            | cName <- nonPKColNames, length nonPKColNames > 1 ]
 
-factTableDefnSQL :: Fact -> Table -> Reader Env [Text]
-factTableDefnSQL fact table = tableDefnSQL table (factTableIndexStmts fact)
+factTableDefinitionSQL :: Fact -> Table -> Reader Env [Text]
+factTableDefinitionSQL fact table = tableDefinitionSQL table (factTableIndexStatements fact)
 
-factTableIndexStmts :: Fact -> Table -> Reader Env [Statement]
-factTableIndexStmts fact table = do
+factTableIndexStatements :: Fact -> Table -> Reader Env [Statement]
+factTableIndexStatements fact table = do
   allDims       <- extractAllDimensionTables fact
   Settings {..} <- asks envSettings
   tables        <- asks envTables

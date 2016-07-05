@@ -6,7 +6,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GADTs #-}
 
-module Ringo.Generator.Populate.Fact (factTablePopulateSQL) where
+module Ringo.Generator.Populate.Fact (factTablePopulationSQL) where
 
 import qualified Data.Text as Text
 
@@ -52,8 +52,8 @@ $$
 LANGUAGE 'plpgsql' IMMUTABLE;
 |]
 
-factCountDistinctUpdateStmts :: TablePopulationMode -> Fact -> Text -> QueryExpr -> Reader Env [Statement]
-factCountDistinctUpdateStmts popMode fact groupByColPrefix expr = case expr of
+factCountDistinctUpdateStatements :: TablePopulationMode -> Fact -> Text -> QueryExpr -> Reader Env [Statement]
+factCountDistinctUpdateStatements popMode fact groupByColPrefix expr = case expr of
   Select {selSelectList = SelectList _ origSelectItems, ..} -> do
     Settings {..}         <- asks envSettings
     tables                <- asks envTables
@@ -119,8 +119,8 @@ factCountDistinctUpdateStmts popMode fact groupByColPrefix expr = case expr of
       let power :: Double = fromIntegral (ceiling . logBase 2 $ (1.04 / errorRate) ** 2 :: Integer)
       in ceiling $ 2 ** power
 
-factTablePopulateStmts :: TablePopulationMode -> Fact -> Reader Env [Statement]
-factTablePopulateStmts popMode fact = do
+factTablePopulationStatements :: TablePopulationMode -> Fact -> Reader Env [Statement]
+factTablePopulationStatements popMode fact = do
   allDims             <- extractAllDimensionTables fact
   Settings {..}       <- asks envSettings
   tables              <- asks envTables
@@ -212,7 +212,7 @@ factTablePopulateStmts popMode fact = do
 
       insertIntoStmt      = insert extFactTableName (map fst3 colMap) populateSelectExpr
 
-  updateStmts <- factCountDistinctUpdateStmts popMode fact groupByColPrefix populateSelectExpr
+  updateStmts <- factCountDistinctUpdateStatements popMode fact groupByColPrefix populateSelectExpr
   return $ insertIntoStmt : updateStmts
   where
     groupByColPrefix = "xxff_"
@@ -223,9 +223,9 @@ factTablePopulateStmts popMode fact = do
       <$> listToMaybe [ colPairs | ForeignKey tName colPairs <-  tableConstraints table
                                  , tName == oTableName ]
 
-factTablePopulateSQL :: TablePopulationMode -> Fact -> Reader Env [Text]
-factTablePopulateSQL popMode fact = do
-  stmts <- factTablePopulateStmts popMode fact
+factTablePopulationSQL :: TablePopulationMode -> Fact -> Reader Env [Text]
+factTablePopulationSQL popMode fact = do
+  stmts <- factTablePopulationStatements popMode fact
   return $ case stmts of
     []   -> []
     [i]  -> [ ppStatement i ]
