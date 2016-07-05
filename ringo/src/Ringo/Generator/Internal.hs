@@ -7,11 +7,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Database.HsSqlPpp.Syntax (ScalarExpr)
-import Data.List                (find, nub)
+import Data.List                (find)
 import Data.Monoid              ((<>))
 import Data.Text                (Text)
 
-import Ringo.Extractor.Internal
 import Ringo.Generator.Sql
 import Ringo.Types
 

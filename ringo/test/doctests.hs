@@ -1,2 +1,4 @@
 import Test.DocTest
-main = doctest ["-isrc", "Ringo"]
+main = do
+  doctest ["-isrc", "Ringo"]
+  doctest ["-isrc", "Ringo.Types.Internal"]

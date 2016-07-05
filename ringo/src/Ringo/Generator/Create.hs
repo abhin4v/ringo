@@ -10,7 +10,7 @@ module Ringo.Generator.Create (dimensionTableDefnSQL, factTableDefnSQL) where
 import Control.Applicative ((<$>))
 #endif
 
-import Control.Monad.Reader     (Reader, asks, withReader)
+import Control.Monad.Reader     (Reader, asks)
 import Database.HsSqlPpp.Syntax ( Statement(..), RowConstraint(..), AlterTableAction(..)
                                 , AlterTableOperation(..), Constraint(..), Cascade(..)
                                 , Replace(..) )

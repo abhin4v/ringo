@@ -34,6 +34,9 @@ settingsParser = let Settings {..} = defSettings
                                    <> value (Text.unpack settingFactPrefix)
                                    <> showDefault
                                    <> help "Prefix for fact tables"))
+     <*> minorOption "fact-infix"
+                     settingFactInfix
+                     "Infix for fact tables"
      <*> option auto (let timeunits = map show [Second ..]
                       in long "timeunit"
                          <> short 't'
@@ -62,9 +65,6 @@ settingsParser = let Settings {..} = defSettings
                       <> value settingFactCountDistinctErrorRate
                       <> showDefault
                       <> help "Error rate for count distinct calulations")
-     <*> minorOption "fact-infix"
-                     settingFactInfix
-                     "Infix for fact tables"
      <*> minorOption "dependencies-json-file"
                      settingDependenciesJSONFileName
                      "Name of the output dependencies json file"

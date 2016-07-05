@@ -5,6 +5,7 @@ module Ringo
 
          -- $setup
          module Ringo.Types
+       , makeEnv
        , extractFactTable
        , extractDimensionTables
        , extractDependencies
@@ -12,7 +13,6 @@ module Ringo
        , factTableDefnSQL
        , dimensionTablePopulateSQL
        , factTablePopulateSQL
-       , makeEnv
        ) where
 
 import Control.Monad.Reader (runReader)

@@ -3,30 +3,30 @@
 {-# LANGUAGE Rank2Types #-}
 
 module Ringo.Types
-  ( ColumnName
-  , ColumnType
+  ( Table(..)
   , TableName
-  , Nullable(..)
-  , Column(..)
   , TableConstraint(..)
-  , Table(..)
+  , Column(..)
+  , ColumnName
+  , ColumnType
+  , Nullable(..)
+  , Fact(..)
+  , FactColumn(..)
+  , FactColumnType(..)
+  , FactColumnKind(..)
+  , factSourceColumnName
   , TimeUnit(..)
   , timeUnitName
   , timeUnitToSeconds
-  , Fact(..)
-  , FactColumnKind(..)
-  , FactColumnType(..)
-  , FactColumn(..)
-  , factSourceColumnName
-  , Settings(..)
-  , defSettings
-  , ValidationError(..)
-  , TypeDefaults
   , Env
   , envTables
   , envFacts
   , envSettings
   , envTypeDefaults
+  , Settings(..)
+  , defSettings
+  , TypeDefaults
+  , ValidationError(..)
   , TablePopulationMode(..)
   , Dependencies
   ) where
