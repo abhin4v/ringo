@@ -1,15 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GADTs #-}
 
 module Ringo.Generator.Populate.Dimension (dimensionTablePopulateSQL) where
 
-#if MIN_VERSION_base(4,8,0)
-#else
-import Control.Applicative ((<$>))
-#endif
-
+import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
 import Database.HsSqlPpp.Syntax (Statement, QueryExpr(..), Distinct(..), makeSelect, JoinType(..))
 import Data.Maybe               (fromJust)

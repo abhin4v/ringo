@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GADTs #-}
@@ -10,11 +10,7 @@ module Ringo.Generator.Populate.Fact (factTablePopulateSQL) where
 
 import qualified Data.Text as Text
 
-#if MIN_VERSION_base(4,8,0)
-#else
-import Control.Applicative ((<$>))
-#endif
-
+import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
 import Database.HsSqlPpp.Syntax ( QueryExpr(..), Statement, makeSelect
                                 , SelectList(..), SelectItem(..), JoinType(..) )

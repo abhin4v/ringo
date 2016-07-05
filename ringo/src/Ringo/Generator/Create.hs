@@ -1,15 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Ringo.Generator.Create (dimensionTableDefnSQL, factTableDefnSQL) where
 
-#if MIN_VERSION_base(4,8,0)
-#else
-import Control.Applicative ((<$>))
-#endif
-
+import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
 import Database.HsSqlPpp.Syntax ( Statement(..), RowConstraint(..), AlterTableAction(..)
                                 , AlterTableOperation(..), Constraint(..), Cascade(..)

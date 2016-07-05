@@ -1,16 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Ringo.InputParser (parseInput) where
 
 import qualified Data.Text as Text
 import qualified Data.Vector as V
 
-#if MIN_VERSION_base(4,8,0)
-#else
-import Control.Applicative ((<$>), (<*>), pure)
-#endif
-
+import Prelude.Compat
 import Data.Maybe       (fromMaybe)
 import Data.Vector      ((!), (!?))
 import Data.Yaml hiding (Null)

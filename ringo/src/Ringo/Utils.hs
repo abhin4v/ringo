@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Ringo.Utils where
 
 import qualified Control.Arrow as Arrow
 
+import Prelude.Compat
 import Data.Maybe (mapMaybe)
 
 for :: [a] -> (a -> b) -> [b]
@@ -12,13 +14,8 @@ for = flip map
 forMaybe :: [a] -> (a -> Maybe b) -> [b]
 forMaybe = flip mapMaybe
 
-#if MIN_VERSION_base(4,8,0)
 concatFor :: (Foldable t) => t a -> (a -> [b]) -> [b]
 concatFor = flip concatMap
-#else
-concatFor :: [a] -> (a -> [b]) -> [b]
-concatFor = flip concatMap
-#endif
 
 infixr 3 ***, &&&
 
