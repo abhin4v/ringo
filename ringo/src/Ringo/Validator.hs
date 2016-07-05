@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
@@ -9,11 +9,7 @@ module Ringo.Validator (validateEnv) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-#if MIN_VERSION_base(4,8,0)
-#else
-import Control.Applicative ((<$>))
-#endif
-
+import Prelude.Compat
 import Control.Monad.Reader (Reader, ask, runReader)
 import Data.Function        (on)
 import Data.Maybe           (isJust, fromJust)
