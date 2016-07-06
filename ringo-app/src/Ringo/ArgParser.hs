@@ -21,19 +21,22 @@ data ProgArgs = ProgArgs
                 , progOutputDir :: FilePath
                 } deriving (Eq, Show)
 
+textOption :: Mod OptionFields String -> Parser Text.Text
+textOption o = Text.pack <$> strOption o
+
 settingsParser :: Parser Settings
 settingsParser = let Settings {..} = defSettings
   in Settings
-     <$> (Text.pack <$> strOption (long "dim-prefix"
-                                   <> short 'd'
-                                   <> value (Text.unpack settingDimPrefix)
-                                   <> showDefault
-                                   <> help "Prefix for dimension tables"))
-     <*> (Text.pack <$> strOption (long "fact-prefix"
-                                   <> short 'f'
-                                   <> value (Text.unpack settingFactPrefix)
-                                   <> showDefault
-                                   <> help "Prefix for fact tables"))
+     <$> textOption (long "dim-prefix"
+                     <> short 'd'
+                     <> value (Text.unpack settingDimPrefix)
+                     <> showDefault
+                     <> help "Prefix for dimension tables")
+     <*> textOption (long "fact-prefix"
+                     <> short 'f'
+                     <> value (Text.unpack settingFactPrefix)
+                     <> showDefault
+                     <> help "Prefix for fact tables")
      <*> minorOption "fact-infix"
                      settingFactInfix
                      "Infix for fact tables"
@@ -84,11 +87,11 @@ settingsParser = let Settings {..} = defSettings
                      "Suffix template for table names in SQL"
   where
     minorOption longDesc defValue helpTxt =
-      Text.pack <$> strOption (long longDesc
-                               <> hidden
-                               <> value (Text.unpack defValue)
-                               <> showDefault
-                               <> help helpTxt)
+      textOption (long longDesc
+                  <> hidden
+                  <> value (Text.unpack defValue)
+                  <> showDefault
+                  <> help helpTxt)
 
 progArgsParser :: Parser ProgArgs
 progArgsParser =
