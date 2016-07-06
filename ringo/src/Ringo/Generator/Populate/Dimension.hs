@@ -10,7 +10,8 @@ module Ringo.Generator.Populate.Dimension
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
-import Database.HsSqlPpp.Syntax (Statement, QueryExpr(..), Distinct(..), makeSelect, JoinType(..))
+import Database.HsSqlPpp.Syntax ( Statement, SelectList, QueryExpr(..), ScalarExpr
+                                , Distinct(..), makeSelect, JoinType(..) )
 import Data.Maybe               (fromJust)
 import Data.Text                (Text)
 
@@ -23,39 +24,54 @@ dimensionTablePopulationSQL :: TablePopulationMode -> Fact -> TableName -> Reade
 dimensionTablePopulationSQL popMode fact dimTableName =
   ppStatement <$> dimensionTablePopulationStatement popMode fact dimTableName
 
+makeSelectList :: Fact -> [(ColumnName, ColumnName)] -> Reader Env SelectList
+makeSelectList fact colMapping = do
+  tables        <- asks envTables
+  defaults      <- asks envTypeDefaults
+  let factTable = fromJust $ findTable (factTableName fact) tables
+  return $ sl [ flip sia (nmc cName) $ coalesceColumn defaults (factTableName fact) col
+                | (_, cName) <- colMapping
+                , let col    = fromJust . findColumn cName $ tableColumns factTable ]
+
+makeSelectWhereClause :: TablePopulationMode -> Fact -> [(a, Text)] -> Maybe ScalarExpr
+makeSelectWhereClause popMode fact colMapping = let
+    timeCol    = head ([ cName | FactColumn cName DimTime <- factColumns fact ] :: [ColumnName])
+    isNotNullC = parens . foldBinop "or" . map (postop "isnotnull" . ei . snd) $ colMapping
+  in Just . foldBinop "and" $
+       [ isNotNullC, binop "<" (ei timeCol) placeholder ] ++
+         [ binop ">=" (ei timeCol) placeholder | popMode == IncrementalPopulation ]
+
+makeIncSelectQuery :: QueryExpr -> TableName -> [(ColumnName, ColumnName)] -> QueryExpr
+makeIncSelectQuery selectQ dimTableName colMapping =
+  makeSelect
+    { selSelectList = sl [si $ qstar alias]
+    , selTref       =
+        [ tjoin (subtrefa alias selectQ) LeftOuter (tref dimTableName) . Just $
+            foldBinop "and" [ binop "=" (eqi dimTableName c1) (eqi alias c2) | (c1, c2) <- colMapping ] ]
+    , selWhere      =
+        Just . foldBinop "and" . map (postop "isnull" . eqi dimTableName . fst) $ colMapping
+    }
+  where
+    alias = "x"
+
+makeSelectQuery :: TablePopulationMode -> Fact -> TableName -> [(ColumnName, ColumnName)] -> Reader Env QueryExpr
+makeSelectQuery popMode fact dimTableName colMapping = do
+  selectList <- makeSelectList fact colMapping
+  let selectQ = makeSelect
+        { selDistinct   = Distinct
+        , selSelectList = selectList
+        , selTref       = [tref $ factTableName fact]
+        , selWhere      = makeSelectWhereClause popMode fact colMapping
+        }
+
+  return $ case popMode of
+    FullPopulation        -> selectQ
+    IncrementalPopulation -> makeIncSelectQuery selectQ dimTableName colMapping
+
 dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
 dimensionTablePopulationStatement popMode fact dimTableName = do
-  Settings {..}    <- asks envSettings
-  tables           <- asks envTables
-  defaults         <- asks envTypeDefaults
-  let factTable    = fromJust $ findTable (factTableName fact) tables
-      colMapping   = dimColumnMapping settingDimPrefix fact dimTableName
-      selectCols   = [ flip sia (nmc cName) $ coalesceColumn defaults (factTableName fact) col
-                       | (_, cName) <- colMapping
-                       , let col    = fromJust . findColumn cName $ tableColumns factTable ]
-      timeCol      = head ([ cName | FactColumn cName DimTime <- factColumns fact ] :: [ColumnName])
-      isNotNullC   = parens . foldBinop "or" . map (postop "isnotnull" . ei . snd) $ colMapping
-      selectWhereC = Just . foldBinop "and" $
-                       [ isNotNullC, binop "<" (ei timeCol) placeholder ] ++
-                         [ binop ">=" (ei timeCol) placeholder | popMode == IncrementalPopulation ]
-      selectC      = makeSelect
-                     { selDistinct   = Distinct
-                     , selSelectList = sl selectCols
-                     , selTref       = [tref $ factTableName fact]
-                     , selWhere      = selectWhereC
-                     }
-
-      iTableName   = suffixTableName popMode settingTableNameSuffixTemplate dimTableName
-      insertC      = insert iTableName (map fst colMapping) $ case popMode of
-        FullPopulation        -> selectC
-        IncrementalPopulation -> let alias = "x" in
-          makeSelect
-          { selSelectList = sl [si $ qstar alias]
-          , selTref       =
-              [ tjoin (subtrefa alias selectC) LeftOuter (tref dimTableName) . Just $
-                  foldBinop "and" [ binop "=" (eqi dimTableName c1) (eqi alias c2) | (c1, c2) <- colMapping ] ]
-          , selWhere      =
-              Just . foldBinop "and" . map (postop "isnull" . eqi dimTableName . fst) $ colMapping
-          }
-
-  return insertC
+  Settings {..}  <- asks envSettings
+  let colMapping = dimColumnMapping settingDimPrefix fact dimTableName
+  let iTableName = suffixTableName popMode settingTableNameSuffixTemplate dimTableName
+  selectQ        <- makeSelectQuery popMode fact dimTableName colMapping
+  return $ insert iTableName (map fst colMapping) selectQ
