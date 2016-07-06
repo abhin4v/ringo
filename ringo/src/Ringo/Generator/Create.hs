@@ -94,11 +94,12 @@ factTableIndexStatements fact table = do
           DimTime   -> Just [dimTimeColName cName]
           NoDimId   -> Just [cName]
           TenantId  -> Just [cName]
-          _               -> Nothing
+          _         -> Nothing
 
       dimCols  = [ [ factDimFKIdColumnName settingDimPrefix settingDimTableIdColumnName dimFact dimTable tables ]
                    | (dimFact, dimTable) <- allDims ]
 
+      tenantCols = [ [cName, dimTimeColName dimTimeCol] | cName <- maybeToList tenantIdCol ]
+
   return [ CreateIndexTSQL ea (nmc "") (name tabName) (map nmc cols)
-           | cols <- factCols ++ dimCols ++ [ [cName, dimTimeColName dimTimeCol]
-                                                       | cName <- maybeToList tenantIdCol ] ]
+           | cols <- factCols ++ dimCols ++ tenantCols ]
