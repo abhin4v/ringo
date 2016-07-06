@@ -21,14 +21,11 @@ instance FromJSON Nullable where
   parseJSON o          = fail $ "Cannot parse nullable: " ++ show o
 
 instance FromJSON Column where
-  parseJSON (Array a) = if V.length a < 2
-    then fail "Column needs at least two elements: name and type"
-    else do
-      cName <- parseJSON $ a ! 0
-      cType <- parseJSON $ a ! 1
-      cNull <- parseJSON $ fromMaybe "null" (a !? 2)
-      return $ Column cName cType cNull
-
+  parseJSON (Array a)
+    | V.length a >= 2 = Column <$> parseJSON (a ! 0)
+                               <*> parseJSON (a ! 1)
+                               <*> parseJSON (fromMaybe "null" (a !? 2))
+    | otherwise       = fail "Column needs at least two elements: name and type"
   parseJSON o         = fail $ "Cannot parse column: " ++ show o
 
 instance FromJSON TableConstraint where
@@ -47,19 +44,20 @@ instance FromJSON Table where
 
 instance FromJSON FactColumn where
   parseJSON (Object o) = do
-    cType <- o .: "type"
+    cType     <- o .: "type"
+    let cName = o .: "column"
     case cType of
-      "dimtime"           -> FactColumn <$> o .: "column" <*> pure DimTime
-      "nodimid"           -> FactColumn <$> o .: "column" <*> pure NoDimId
-      "tenantid"          -> FactColumn <$> o .: "column" <*> pure TenantId
-      "dimid"             -> FactColumn <$> o .: "column" <*> (DimId             <$> o .: "table")
-      "dimval"            -> FactColumn <$> o .: "column" <*> (DimVal            <$> o .: "table")
-      "factcount"         -> FactColumn <$> o .: "column" <*> (FactCount         <$> o .:? "sourcecolumn")
-      "factcountdistinct" -> FactColumn <$> o .: "column" <*> (FactCountDistinct <$> o .:? "sourcecolumn")
-      "factsum"           -> FactColumn <$> o .: "column" <*> (FactSum           <$> o .: "sourcecolumn")
-      "factaverage"       -> FactColumn <$> o .: "column" <*> (FactAverage       <$> o .: "sourcecolumn")
-      "factmax"           -> FactColumn <$> o .: "column" <*> (FactMax           <$> o .: "sourcecolumn")
-      "factmin"           -> FactColumn <$> o .: "column" <*> (FactMin           <$> o .: "sourcecolumn")
+      "dimtime"           -> FactColumn <$> cName <*> pure DimTime
+      "nodimid"           -> FactColumn <$> cName <*> pure NoDimId
+      "tenantid"          -> FactColumn <$> cName <*> pure TenantId
+      "dimid"             -> FactColumn <$> cName <*> (DimId             <$> o .: "table")
+      "dimval"            -> FactColumn <$> cName <*> (DimVal            <$> o .: "table")
+      "factcount"         -> FactColumn <$> cName <*> (FactCount         <$> o .:? "sourcecolumn")
+      "factcountdistinct" -> FactColumn <$> cName <*> (FactCountDistinct <$> o .:? "sourcecolumn")
+      "factsum"           -> FactColumn <$> cName <*> (FactSum           <$> o .: "sourcecolumn")
+      "factaverage"       -> FactColumn <$> cName <*> (FactAverage       <$> o .: "sourcecolumn")
+      "factmax"           -> FactColumn <$> cName <*> (FactMax           <$> o .: "sourcecolumn")
+      "factmin"           -> FactColumn <$> cName <*> (FactMin           <$> o .: "sourcecolumn")
       _                   -> fail $ "Invalid fact column type: " ++ cType
   parseJSON o          = fail $ "Cannot parse fact column: " ++ show o
 

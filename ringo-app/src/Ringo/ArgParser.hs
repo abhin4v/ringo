@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
+
 module Ringo.ArgParser (ProgArgs(..), parseArgs) where
 
 import qualified Data.Text as Text

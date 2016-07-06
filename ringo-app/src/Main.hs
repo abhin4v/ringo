@@ -35,7 +35,7 @@ writeFiles :: FilePath -> Env -> IO ()
 writeFiles outputDir env = do
   let Settings{..} = envSettings env
 
-  forM_ sqls $ \(sqlType, table, sql) -> do
+  forM_ (makeSQLs env dimTables factTables) $ \(sqlType, table, sql) -> do
     let dirName = outputDir </> map toLower (show sqlType)
     createDirectoryIfMissing True dirName
     writeFile (dirName </> Text.unpack table <.> "sql") sql
@@ -50,7 +50,6 @@ writeFiles outputDir env = do
 
   BS.writeFile (outputDir </> Text.unpack settingFactsJSONFileName) . encode $
     [ tableName table | (_, table) <- factTables ]
-
   where
     facts      = envFacts env
     tables     = envTables env
@@ -58,13 +57,17 @@ writeFiles outputDir env = do
     dimTables  = [ (fact, extractDimensionTables env fact) | fact <- facts ]
     factTables = [ (fact, extractFactTable env fact)       | fact <- facts, factTablePersistent fact ]
 
-    dimTableDefinitionSQLs = [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefinitionSQL env table)
-                               | (_, tabs) <- dimTables
-                               , table     <- tabs
-                               , table `notElem` tables ]
+makeSQLs :: Env -> [(Fact, [Table])] -> [(Fact, Table)] -> [(SQLType, TableName, String)]
+makeSQLs env dimTables factTables = let
+    dimTableDefinitionSQLs =
+      [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefinitionSQL env table)
+         | (_, tabs) <- dimTables
+         , table     <- tabs
+         , table `notElem` tables ]
 
-    factTableDefinitionSQLs = [ (Create , tableName table, unlines . map sqlStr $ factTableDefinitionSQL env fact table)
-                                | (fact, table) <- factTables ]
+    factTableDefinitionSQLs =
+      [ (Create , tableName table, unlines . map sqlStr $ factTableDefinitionSQL env fact table)
+        | (fact, table) <- factTables ]
 
     dimTablePopulationSQLs typ gen  =
       [ (typ , tableName table, sqlStr $ gen env fact (tableName table))
@@ -74,13 +77,13 @@ writeFiles outputDir env = do
 
     factTablePopulationSQLs typ gen = [ (typ, tableName table, unlines . map sqlStr  $ gen env fact)
                                         | (fact, table) <- factTables ]
-
-    sqls = concat [ dimTableDefinitionSQLs
-                  , factTableDefinitionSQLs
-                  , dimTablePopulationSQLs FullRefresh  $ dimensionTablePopulationSQL FullPopulation
-                  , dimTablePopulationSQLs IncRefresh   $ dimensionTablePopulationSQL IncrementalPopulation
-                  , factTablePopulationSQLs FullRefresh $ factTablePopulationSQL FullPopulation
-                  , factTablePopulationSQLs IncRefresh  $ factTablePopulationSQL IncrementalPopulation
-                  ]
-
+  in concat [ dimTableDefinitionSQLs
+            , factTableDefinitionSQLs
+            , dimTablePopulationSQLs FullRefresh  $ dimensionTablePopulationSQL FullPopulation
+            , dimTablePopulationSQLs IncRefresh   $ dimensionTablePopulationSQL IncrementalPopulation
+            , factTablePopulationSQLs FullRefresh $ factTablePopulationSQL FullPopulation
+            , factTablePopulationSQLs IncRefresh  $ factTablePopulationSQL IncrementalPopulation
+            ]
+  where
+    tables = envTables env
     sqlStr = Text.unpack
