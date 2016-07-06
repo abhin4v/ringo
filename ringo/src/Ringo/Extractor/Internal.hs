@@ -18,6 +18,7 @@ import Data.List            (nub, nubBy, find)
 import Data.Text            (Text)
 
 import Ringo.Types.Internal
+import Ringo.Utils
 
 findTable :: TableName -> [Table] -> Maybe Table
 findTable tName = find ((== tName) . tableName)
@@ -71,36 +72,45 @@ extractDimensionTables :: Fact -> Reader Env [Table]
 extractDimensionTables fact = do
   settings  <- asks envSettings
   tables    <- asks envTables
-  let table = fromJust . findTable (factTableName fact) $ tables
-  return $ dimsFromIds tables ++ dimsFromVals settings (tableColumns table)
-  where
-    dimsFromIds tables =
-      catMaybes [ findTable factColTargetTable tables
-                  | FactColumn {factColType = DimId {..}} <- factColumns fact ]
+  return $ dimTablesFromIds tables fact ++ dimTablesFromVals settings tables fact
 
-    dimsFromVals Settings {..} tableColumns =
-      map (\(dim, cols) ->
-            Table { tableName        = settingDimPrefix <> dim
-                  , tableColumns     =
-                      Column settingDimTableIdColumnName settingDimTableIdColumnType NotNull : cols
-                  , tableConstraints = [ PrimaryKey settingDimTableIdColumnName
-                                       , UniqueKey (map columnName cols)
-                                       ]
-                  })
-      . Map.toList
-      . Map.mapWithKey
-          (\dim ->  map (\col -> col { columnName     = dimColumnName dim (columnName col)
-                                     , columnNullable = NotNull
-                                     })
-                    . nub)
-      . Map.fromListWith (flip (++))
-      . mapMaybe (\fcol -> do
-                    FactColumn {factColType = DimVal {..}, ..} <- fcol
-                    column <- findColumn factColTargetColumn tableColumns
-                    return (factColTargetTable, [ column ]))
-      . map Just
-      . factColumns
-      $ fact
+dimTablesFromIds :: [Table] -> Fact -> [Table]
+dimTablesFromIds tables fact =
+  catMaybes [ findTable factColTargetTable tables
+              | FactColumn { factColType = DimId {..} } <- factColumns fact ]
+
+dimTablesFromVals :: Settings -> [Table] -> Fact -> [Table]
+dimTablesFromVals Settings {..} tables fact =
+  fact
+  >>- factColumns
+  >>> mapMaybe (findDimValColumn . Just)
+  >>> Map.fromListWith (flip (++))
+  >>> Map.mapWithKey makeDimColumns
+  >>> Map.toList
+  >>> map (uncurry makeDimTable)
+  where
+    Table {..} = fromJust . findTable (factTableName fact) $ tables
+
+    makeDimTable dim cols =
+      Table { tableName        = settingDimPrefix <> dim
+            , tableColumns     =
+                Column settingDimTableIdColumnName settingDimTableIdColumnType NotNull : cols
+            , tableConstraints = [ PrimaryKey settingDimTableIdColumnName
+                                 , UniqueKey (map columnName cols)
+                                 ]
+            }
+
+    makeDimColumns dim cols = [ col { columnName = dimColumnName dim (columnName col)
+                                    , columnNullable = NotNull
+                                    }
+                                | col <- nub cols
+                              ]
+
+    findDimValColumn :: Maybe FactColumn -> Maybe (TableName, [Column])
+    findDimValColumn fcol = do
+      FactColumn { factColType = DimVal {..}, .. } <- fcol
+      column <- findColumn factColTargetColumn tableColumns
+      return (factColTargetTable, [column])
 
 extractAllDimensionTables :: Fact -> Reader Env [(Fact, Table)]
 extractAllDimensionTables fact = do
