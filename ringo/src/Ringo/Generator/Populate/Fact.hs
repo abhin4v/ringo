@@ -6,7 +6,10 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE GADTs #-}
 
-module Ringo.Generator.Populate.Fact (factTablePopulationSQL) where
+module Ringo.Generator.Populate.Fact
+  ( factTablePopulationSQL
+  , factTablePopulationStatements
+  ) where
 
 import qualified Data.Text as Text
 

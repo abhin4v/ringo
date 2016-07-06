@@ -3,7 +3,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GADTs #-}
 
-module Ringo.Generator.Populate.Dimension (dimensionTablePopulationSQL) where
+module Ringo.Generator.Populate.Dimension
+  ( dimensionTablePopulationSQL
+  , dimensionTablePopulationStatement
+  ) where
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)

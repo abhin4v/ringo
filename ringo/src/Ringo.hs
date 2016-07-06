@@ -13,10 +13,15 @@ module Ringo
        , factTableDefinitionSQL
        , dimensionTablePopulationSQL
        , factTablePopulationSQL
+       , dimensionTableDefinitionStatements
+       , factTableDefinitionStatements
+       , dimensionTablePopulationStatement
+       , factTablePopulationStatements
        ) where
 
 import Control.Monad.Reader (runReader)
 import Data.Text (Text)
+import Database.HsSqlPpp.Syntax ( Statement )
 
 import Ringo.Types
 import qualified Ringo.Extractor as E
@@ -280,6 +285,9 @@ extractDependencies env = flip runReader env . E.extractDependencies
 dimensionTableDefinitionSQL :: Env -> Table -> [Text]
 dimensionTableDefinitionSQL env = flip runReader env . G.dimensionTableDefinitionSQL
 
+dimensionTableDefinitionStatements :: Env -> Table -> [Statement]
+dimensionTableDefinitionStatements env = flip runReader env . G.dimensionTableDefinitionStatements
+
 -- |
 --
 -- >>> let storySessionFactTable = extractFactTable env sessionFact
@@ -342,6 +350,9 @@ dimensionTableDefinitionSQL env = flip runReader env . G.dimensionTableDefinitio
 -- ;
 factTableDefinitionSQL :: Env -> Fact -> Table -> [Text]
 factTableDefinitionSQL env fact = flip runReader env . G.factTableDefinitionSQL fact
+
+factTableDefinitionStatements :: Env -> Fact -> Table -> [Statement]
+factTableDefinitionStatements env fact = flip runReader env . G.factTableDefinitionStatements fact
 
 -- |
 --
@@ -470,6 +481,10 @@ factTableDefinitionSQL env fact = flip runReader env . G.factTableDefinitionSQL 
 dimensionTablePopulationSQL :: TablePopulationMode -> Env -> Fact -> TableName -> Text
 dimensionTablePopulationSQL popMode env fact =
   flip runReader env . G.dimensionTablePopulationSQL popMode fact
+
+dimensionTablePopulationStatement :: TablePopulationMode -> Env -> Fact -> TableName -> Statement
+dimensionTablePopulationStatement popMode env fact =
+  flip runReader env . G.dimensionTablePopulationStatement popMode fact
 
 -- |
 --
@@ -618,3 +633,7 @@ dimensionTablePopulationSQL popMode env fact =
 factTablePopulationSQL :: TablePopulationMode -> Env -> Fact -> [Text]
 factTablePopulationSQL popMode env =
   flip runReader env . G.factTablePopulationSQL popMode
+
+factTablePopulationStatements :: TablePopulationMode -> Env -> Fact -> [Statement]
+factTablePopulationStatements popMode env =
+  flip runReader env . G.factTablePopulationStatements popMode

@@ -3,7 +3,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Ringo.Generator.Create (dimensionTableDefinitionSQL, factTableDefinitionSQL) where
+module Ringo.Generator.Create ( dimensionTableDefinitionSQL
+                              , dimensionTableDefinitionStatements
+                              , factTableDefinitionSQL
+                              , factTableDefinitionStatements
+                              ) where
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
@@ -53,6 +57,10 @@ tableDefinitionSQL table indexFn = do
 dimensionTableDefinitionSQL :: Table -> Reader Env [Text]
 dimensionTableDefinitionSQL table = tableDefinitionSQL table dimensionTableIndexStatements
 
+dimensionTableDefinitionStatements :: Table -> Reader Env [Statement]
+dimensionTableDefinitionStatements table =
+  (++) <$> tableDefinitionStatements table <*> dimensionTableIndexStatements table
+
 dimensionTableIndexStatements :: Table -> Reader Env [Statement]
 dimensionTableIndexStatements Table {..} = do
   Settings {..} <- asks envSettings
@@ -65,6 +73,10 @@ dimensionTableIndexStatements Table {..} = do
 
 factTableDefinitionSQL :: Fact -> Table -> Reader Env [Text]
 factTableDefinitionSQL fact table = tableDefinitionSQL table (factTableIndexStatements fact)
+
+factTableDefinitionStatements :: Fact -> Table -> Reader Env [Statement]
+factTableDefinitionStatements fact table =
+  (++) <$> tableDefinitionStatements table <*> factTableIndexStatements fact table
 
 factTableIndexStatements :: Fact -> Table -> Reader Env [Statement]
 factTableIndexStatements fact table = do
