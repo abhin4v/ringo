@@ -9,16 +9,17 @@
 module Ringo.Generator.Populate.Fact
   ( factTablePopulationSQL
   , factTablePopulationStatements
+  , ilog2FunctionString
   ) where
 
 import qualified Data.Text as Text
 
 import Prelude.Compat
 import Control.Monad.Reader     (Reader, asks)
-import Database.HsSqlPpp.Syntax ( QueryExpr(..), Statement, makeSelect
-                                , SelectList(..), SelectItem(..), JoinType(..) )
+import Database.HsSqlPpp.Syntax ( QueryExpr(..), ScalarExpr, Statement, makeSelect, NameComponent
+                                , JoinType(..) )
 import Data.List                (nub)
-import Data.Maybe               (fromJust, fromMaybe, listToMaybe)
+import Data.Maybe               (fromJust, listToMaybe)
 import Data.Monoid              ((<>))
 import Data.Text                (Text)
 import Text.RawString.QQ        (r)
@@ -26,6 +27,7 @@ import Text.RawString.QQ        (r)
 import Ringo.Extractor.Internal
 import Ringo.Generator.Internal
 import Ringo.Generator.Sql
+import Ringo.Generator.Populate.Fact.CountDistinct
 import Ringo.Types.Internal
 import Ringo.Utils
 
@@ -55,177 +57,6 @@ $$
 LANGUAGE 'plpgsql' IMMUTABLE;
 |]
 
-factCountDistinctUpdateStatements :: TablePopulationMode -> Fact -> Text -> QueryExpr -> Reader Env [Statement]
-factCountDistinctUpdateStatements popMode fact groupByColPrefix expr = case expr of
-  Select {selSelectList = SelectList _ origSelectItems, ..} -> do
-    Settings {..}         <- asks envSettings
-    tables                <- asks envTables
-    let fTableName        = factTableName fact
-        fTable            = fromJust . findTable fTableName $ tables
-        tablePKColName    = head [ cName | PrimaryKey cName <- tableConstraints fTable ]
-        extFactTableName  =
-          suffixTableName popMode settingTableNameSuffixTemplate
-            $ extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
-
-    return $ forMaybe (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
-      case factColType of
-        FactCountDistinct {factColMaybeSourceColumn = scName} ->
-          let unqCol           = cast (eqi fTableName (fromMaybe tablePKColName scName)) "text"
-
-              bucketSelectCols =
-                [ sia (binop "&" (app "hashtext" [ unqCol ])
-                                 (num . Text.pack . show $ bucketCount settingFactCountDistinctErrorRate - 1))
-                      (nmc $ cName <> "_bnum")
-                , sia (binop "-"
-                         (num "31")
-                         (app "ilog2"
-                            [ app "min" [ binop "&"
-                                            (app "hashtext" [ unqCol ])
-                                            (prefop "~" (parens (binop "<<" (num "1") (num "31"))))]]))
-                      (nmc $ cName <> "_bhash")
-                ]
-
-              groupByCols      = map ppScalarExpr selGroupBy
-              selectList       =
-                [ i | i@(SelectItem _ _ a) <- origSelectItems , a `elem` map nmc groupByCols ]
-
-              selectStmt       =
-                makeSelect
-                  { selSelectList = sl $ selectList ++ bucketSelectCols
-                  , selTref       = selTref
-                  , selWhere      = binop "and" (postop "isnotnull" unqCol) <$> selWhere
-                  , selGroupBy    = selGroupBy ++ [ ei $ cName <> "_bnum" ]
-                  }
-
-              aggSelectClause  =
-                sia (app "json_object_agg" [ ei (cName <> "_bnum"), ei (cName <> "_bhash") ]) (nmc cName)
-
-          in Just $ update extFactTableName
-            [ (cName, eqi "xyz" cName) ]
-            [ subtrefa "xyz"
-                makeSelect
-                  { selSelectList = sl $ map (si . ei) groupByCols ++ [ aggSelectClause ]
-                  , selTref       = [ subtrefa "zyx" selectStmt ]
-                  , selGroupBy    = selGroupBy
-                  } ] $
-            foldBinop "and"
-              [ binop "=" (eqi extFactTableName . fromJust . Text.stripPrefix groupByColPrefix $ col)
-                           (eqi "xyz" col)
-                | col <- groupByCols ]
-
-        _ -> Nothing
-
-  _ -> return []
-  where
-    bucketCount :: Double -> Integer
-    bucketCount errorRate =
-      let power :: Double = fromIntegral (ceiling . logBase 2 $ (1.04 / errorRate) ** 2 :: Integer)
-      in ceiling $ 2 ** power
-
-factTablePopulationStatements :: TablePopulationMode -> Fact -> Reader Env [Statement]
-factTablePopulationStatements popMode fact = do
-  allDims             <- extractAllDimensionTables fact
-  Settings {..}       <- asks envSettings
-  tables              <- asks envTables
-  defaults            <- asks envTypeDefaults
-  let fTableName      = factTableName fact
-      fTable          = fromJust . findTable fTableName $ tables
-      dimIdColName    = settingDimTableIdColumnName
-
-      coalesceFKId ex =
-        app "coalesce" [ ex, num . Text.pack . show $ settingForeignKeyIdCoalesceValue ]
-
-      timeUnitColumnInsertSQL cName =
-        let colName = timeUnitColumnName dimIdColName cName settingTimeUnit
-        in ( colName
-           , cast (app "floor" [ binop "/" (extEpoch (eqi fTableName cName))
-                                           (num . Text.pack . show . timeUnitToSeconds $ settingTimeUnit) ])
-                  "bigint"
-           , True
-           )
-      dimIdColumnInsertSQL cName =
-        let sCol = fromJust . findColumn cName $ tableColumns fTable
-        in (cName, coalesceColumn defaults fTableName sCol, True)
-
-      app' f cName = app f [ eqi fTableName cName ]
-
-      factColMap = concatFor (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
-        case factColType of
-          DimTime                -> [ timeUnitColumnInsertSQL cName ]
-          NoDimId                -> [ dimIdColumnInsertSQL cName ]
-          TenantId               -> [ dimIdColumnInsertSQL cName ]
-          FactCount {..}         ->
-            [ (cName, app "count" [ maybe star (eqi fTableName) factColMaybeSourceColumn ], False) ]
-          FactCountDistinct {..} -> [ (cName, cast (str "{}") "json", False) ]
-          FactSum {..}           -> [ (cName, app' "sum" factColSourceColumn, False) ]
-          FactMax {..}           -> [ (cName, app' "max" factColSourceColumn, False) ]
-          FactMin {..}           -> [ (cName, app' "min" factColSourceColumn, False) ]
-          FactAverage {..}       ->
-            [ ( cName <> settingAvgCountColumnSuffix, app' "count" factColSourceColumn, False )
-            , ( cName <> settingAvgSumColumnSuffix , app' "sum" factColSourceColumn  , False)
-            ]
-          _                      -> []
-
-      dimColMap = for allDims $ \(dimFact, factTable@Table {tableName}) -> let
-          dimFKIdColName        =
-            factDimFKIdColumnName settingDimPrefix dimIdColName dimFact factTable tables
-          factSourceTableName   = factTableName dimFact
-          factSourceTable       = fromJust . findTable factSourceTableName $ tables
-          dimFKIdColumn         = fromJust . findColumn dimFKIdColName $ tableColumns factSourceTable
-          dimLookupWhereClauses = Just . foldBinop "and" $
-            [ binop "=" (eqi tableName dimColName) (coalesceColumn defaults factSourceTableName sourceCol)
-              | (dimColName, sourceColName) <- dimColumnMapping settingDimPrefix dimFact tableName
-              , let sourceCol = fromJust . findColumn sourceColName $ tableColumns factSourceTable ]
-          insertExpr = if factTable `elem` tables -- existing dimension table
-            then (if columnNullable dimFKIdColumn == Null then coalesceFKId else id)
-                   $ eqi factSourceTableName dimFKIdColName
-            else coalesceFKId . subQueryExp $
-                   makeSelect
-                     { selSelectList = sl [ si $ ei dimIdColName ]
-                     , selTref       =
-                         [ trefa (suffixTableName popMode settingTableNameSuffixTemplate tableName) tableName ]
-                     , selWhere      = dimLookupWhereClauses
-                     }
-        in (dimFKIdColName, insertExpr, True)
-
-      colMap              = [ (cName, (expr, nmc $ groupByColPrefix <> cName), addToGroupBy)
-                              | (cName, expr, addToGroupBy) <- factColMap ++ dimColMap ]
-
-      joinClauses         =
-        map (tref &&& joinClausePreds fTable)
-        . filter (/= fTableName)
-        . nub
-        . map (factTableName . fst)
-        $ allDims
-
-      timeCol             = eqi fTableName $ head [ cName | FactColumn cName DimTime <- factColumns fact ]
-
-      extFactTableName    = suffixTableName popMode settingTableNameSuffixTemplate
-        $ extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
-
-      populateSelectExpr  =
-        makeSelect
-          { selSelectList = sl . map (uncurry sia . snd3) $ colMap
-          , selTref       = [ foldl (\tf (t, oc) -> tjoin tf LeftOuter t oc) (tref fTableName) joinClauses ]
-          , selWhere      = Just . foldBinop "and" $
-              binop "<" timeCol placeholder :
-                [ binop ">=" timeCol placeholder | popMode == IncrementalPopulation ]
-          , selGroupBy    = map (ei . (groupByColPrefix <>) . fst3) . filter thd3 $ colMap
-          }
-
-      insertIntoStmt      = insert extFactTableName (map fst3 colMap) populateSelectExpr
-
-  updateStmts <- factCountDistinctUpdateStatements popMode fact groupByColPrefix populateSelectExpr
-  return $ insertIntoStmt : updateStmts
-  where
-    groupByColPrefix = "xxff_"
-
-    joinClausePreds table oTableName =
-      foldBinop "and"
-      . map (\(c1, c2) -> binop "=" (eqi (tableName table) c1) (eqi oTableName c2))
-      <$> listToMaybe [ colPairs | ForeignKey tName colPairs <-  tableConstraints table
-                                 , tName == oTableName ]
-
 factTablePopulationSQL :: TablePopulationMode -> Fact -> Reader Env [Text]
 factTablePopulationSQL popMode fact = do
   stmts <- factTablePopulationStatements popMode fact
@@ -233,3 +64,138 @@ factTablePopulationSQL popMode fact = do
     []   -> []
     [i]  -> [ ppStatement i ]
     i:us -> [ ppStatement i, ilog2FunctionString ] ++ map ppStatement us
+
+factTablePopulationStatements :: TablePopulationMode -> Fact -> Reader Env [Statement]
+factTablePopulationStatements popMode fact = do
+  Settings {..}        <- asks envSettings
+  allDims              <- extractAllDimensionTables fact
+  selExprs             <- selectExprs popMode fact allDims groupByColPrefix
+  popQueryExpr         <- populateQueryExpr popMode fact allDims selExprs groupByColPrefix
+
+  let extFactTableName = suffixTableName popMode settingTableNameSuffixTemplate
+        $ extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
+      insertIntoStmt   = insert extFactTableName (map fst3 selExprs) popQueryExpr
+
+  updateStmts          <- factCountDistinctUpdateStatements popMode fact groupByColPrefix popQueryExpr
+  return $ insertIntoStmt : updateStmts
+  where
+    groupByColPrefix = "xxff_"
+
+selectExprs :: TablePopulationMode
+            -> Fact
+            -> [(Fact, Table)]
+            -> Text
+            -> Reader Env [(ColumnName, (ScalarExpr, NameComponent), Bool)]
+selectExprs popMode fact allDims groupByColPrefix = do
+  factSelExprs <- factColumnSelectExprs fact
+  dimSelExprs  <- dimColumnSelectExprs popMode allDims
+
+  return [ (cName, (expr, nmc $ groupByColPrefix <> cName), addToGroupBy)
+           | (cName, expr, addToGroupBy) <- factSelExprs ++ dimSelExprs ]
+
+factColumnSelectExprs :: Fact -> Reader Env [(ColumnName, ScalarExpr, Bool)]
+factColumnSelectExprs fact = do
+  Settings {..}    <- asks envSettings
+  tables           <- asks envTables
+  typeDefaults     <- asks envTypeDefaults
+  let fTableName   = factTableName fact
+      fTable       = fromJust . findTable fTableName $ tables
+      dimIdColName = settingDimTableIdColumnName
+      app' f cName = app f [ eqi fTableName cName ]
+
+  return $ concatFor (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
+    case factColType of
+      DimTime                -> [ timeUnitColumnSelectExpr fTableName dimIdColName settingTimeUnit cName ]
+      NoDimId                -> [ dimIdColumnSelectExpr fTableName fTable typeDefaults cName ]
+      TenantId               -> [ dimIdColumnSelectExpr fTableName fTable typeDefaults cName ]
+      FactCount {..}         ->
+        [ (cName, app "count" [ maybe star (eqi fTableName) factColMaybeSourceColumn ], False) ]
+      FactCountDistinct {..} -> [ (cName, cast (str "{}") "json", False) ]
+      FactSum {..}           -> [ (cName, app' "sum" factColSourceColumn, False) ]
+      FactMax {..}           -> [ (cName, app' "max" factColSourceColumn, False) ]
+      FactMin {..}           -> [ (cName, app' "min" factColSourceColumn, False) ]
+      FactAverage {..}       ->
+        [ ( cName <> settingAvgCountColumnSuffix, app' "count" factColSourceColumn, False )
+        , ( cName <> settingAvgSumColumnSuffix , app' "sum" factColSourceColumn  , False)
+        ]
+      _                      -> []
+
+timeUnitColumnSelectExpr :: TableName -> ColumnName -> TimeUnit -> ColumnName -> (ColumnName, ScalarExpr, Bool)
+timeUnitColumnSelectExpr fTableName dimIdColName settingTimeUnit cName =
+  let colName = timeUnitColumnName dimIdColName cName settingTimeUnit
+  in ( colName
+     , cast (app "floor" [ binop "/" (extEpoch (eqi fTableName cName))
+                                     (num . Text.pack . show . timeUnitToSeconds $ settingTimeUnit) ])
+            "bigint"
+     , True
+     )
+
+dimIdColumnSelectExpr :: TableName -> Table -> TypeDefaults -> ColumnName -> (ColumnName, ScalarExpr, Bool)
+dimIdColumnSelectExpr fTableName fTable typeDefaults cName =
+  let sCol = fromJust . findColumn cName $ tableColumns fTable
+  in (cName, coalesceColumn typeDefaults fTableName sCol, True)
+
+dimColumnSelectExprs :: TablePopulationMode -> [(Fact, Table)] -> Reader Env [(ColumnName, ScalarExpr, Bool)]
+dimColumnSelectExprs popMode allDims = do
+  settings@Settings {..} <- asks envSettings
+  tables                 <- asks envTables
+  typeDefaults           <- asks envTypeDefaults
+  let dimIdColName       = settingDimTableIdColumnName
+
+  return $ for allDims $ \(dimFact, factTable@Table {tableName}) -> let
+      dimFKIdColName        =
+        factDimFKIdColumnName settingDimPrefix dimIdColName dimFact factTable tables
+      factSourceTableName   = factTableName dimFact
+      factSourceTable       = fromJust . findTable factSourceTableName $ tables
+      dimFKIdColumn         = fromJust . findColumn dimFKIdColName $ tableColumns factSourceTable
+      dimLookupWhereClauses = Just . foldBinop "and" $
+        [ binop "=" (eqi tableName dimColName) (coalesceColumn typeDefaults factSourceTableName sourceCol)
+          | (dimColName, sourceColName) <- dimColumnMapping settingDimPrefix dimFact tableName
+          , let sourceCol = fromJust . findColumn sourceColName $ tableColumns factSourceTable ]
+      insertExpr = if factTable `elem` tables -- existing dimension table
+        then (if columnNullable dimFKIdColumn == Null then coalesceFKId settings else id)
+               $ eqi factSourceTableName dimFKIdColName
+        else coalesceFKId settings . subQueryExp $
+               makeSelect
+                 { selSelectList = sl [ si $ ei dimIdColName ]
+                 , selTref       =
+                     [ trefa (suffixTableName popMode settingTableNameSuffixTemplate tableName) tableName ]
+                 , selWhere      = dimLookupWhereClauses
+                 }
+     in (dimFKIdColName, insertExpr, True)
+  where
+    coalesceFKId Settings {..} ex =
+      app "coalesce" [ ex, num . Text.pack . show $ settingForeignKeyIdCoalesceValue ]
+
+populateQueryExpr :: TablePopulationMode
+                  -> Fact
+                  -> [(Fact, Table)]
+                  -> [(ColumnName, (ScalarExpr, NameComponent), Bool)]
+                  -> Text
+                  -> Reader Env QueryExpr
+populateQueryExpr popMode fact allDims selExprs groupByColPrefix = do
+  Settings {..}   <- asks envSettings
+  tables          <- asks envTables
+  let fTableName  = factTableName fact
+      fTable      = fromJust . findTable fTableName $ tables
+      joinClauses =
+        map (tref &&& joinClausePreds fTable)
+        . filter (/= fTableName)
+        . nub
+        . map (factTableName . fst)
+        $ allDims
+      timeCol     = eqi fTableName $ head [ cName | FactColumn cName DimTime <- factColumns fact ]
+  return $ makeSelect
+             { selSelectList = sl . map (uncurry sia . snd3) $ selExprs
+             , selTref       = [ foldl (\tf (t, oc) -> tjoin tf LeftOuter t oc) (tref fTableName) joinClauses ]
+             , selWhere      = Just . foldBinop "and" $
+                 binop "<" timeCol placeholder :
+                   [ binop ">=" timeCol placeholder | popMode == IncrementalPopulation ]
+             , selGroupBy    = map (ei . (groupByColPrefix <>) . fst3) . filter thd3 $ selExprs
+             }
+  where
+    joinClausePreds table oTableName =
+      foldBinop "and"
+      . map (\(c1, c2) -> binop "=" (eqi (tableName table) c1) (eqi oTableName c2))
+      <$> listToMaybe [ colPairs | ForeignKey tName colPairs <-  tableConstraints table
+                                 , tName == oTableName ]
