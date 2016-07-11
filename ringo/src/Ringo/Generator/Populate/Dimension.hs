@@ -24,6 +24,28 @@ dimensionTablePopulationSQL :: TablePopulationMode -> Fact -> TableName -> Reade
 dimensionTablePopulationSQL popMode fact dimTableName =
   ppStatement <$> dimensionTablePopulationStatement popMode fact dimTableName
 
+dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
+dimensionTablePopulationStatement popMode fact dimTableName = do
+  Settings {..}   <- asks envSettings
+  let colMapping  = dimColumnMapping settingDimPrefix fact dimTableName
+  let insertTable = suffixTableName popMode settingTableNameSuffixTemplate dimTableName
+  selectQ         <- makeSelectQuery popMode fact dimTableName colMapping
+  return $ insert insertTable (map fst colMapping) selectQ
+
+makeSelectQuery :: TablePopulationMode -> Fact -> TableName -> [(ColumnName, ColumnName)] -> Reader Env QueryExpr
+makeSelectQuery popMode fact dimTableName colMapping = do
+  selectList <- makeSelectList fact colMapping
+  let selectQ = makeSelect
+        { selDistinct   = Distinct
+        , selSelectList = selectList
+        , selTref       = [tref $ factTableName fact]
+        , selWhere      = makeSelectWhereClause popMode fact colMapping
+        }
+
+  return $ case popMode of
+    FullPopulation        -> selectQ
+    IncrementalPopulation -> makeIncSelectQuery selectQ dimTableName colMapping
+
 makeSelectList :: Fact -> [(ColumnName, ColumnName)] -> Reader Env SelectList
 makeSelectList fact colMapping = do
   tables        <- asks envTables
@@ -53,25 +75,3 @@ makeIncSelectQuery selectQ dimTableName colMapping =
     }
   where
     alias = "x"
-
-makeSelectQuery :: TablePopulationMode -> Fact -> TableName -> [(ColumnName, ColumnName)] -> Reader Env QueryExpr
-makeSelectQuery popMode fact dimTableName colMapping = do
-  selectList <- makeSelectList fact colMapping
-  let selectQ = makeSelect
-        { selDistinct   = Distinct
-        , selSelectList = selectList
-        , selTref       = [tref $ factTableName fact]
-        , selWhere      = makeSelectWhereClause popMode fact colMapping
-        }
-
-  return $ case popMode of
-    FullPopulation        -> selectQ
-    IncrementalPopulation -> makeIncSelectQuery selectQ dimTableName colMapping
-
-dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
-dimensionTablePopulationStatement popMode fact dimTableName = do
-  Settings {..}  <- asks envSettings
-  let colMapping = dimColumnMapping settingDimPrefix fact dimTableName
-  let iTableName = suffixTableName popMode settingTableNameSuffixTemplate dimTableName
-  selectQ        <- makeSelectQuery popMode fact dimTableName colMapping
-  return $ insert iTableName (map fst colMapping) selectQ
