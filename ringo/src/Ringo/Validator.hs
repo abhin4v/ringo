@@ -91,11 +91,11 @@ validateEnv tables facts settings@Settings {..} typeDefaults = let
        tableVs <- concat <$> mapM validateTable tables
        factVs  <- concat <$> mapM validateFact facts
        let dupTableVs = [ DuplicateTable table | table <- findDups . map tableName $ tables ]
-       let dupFactVs  = [ DuplicateFact fact   | fact  <- findDups . map factName $ facts ]
-       let dupColVs   = [ DuplicateColumn tableName col
+           dupFactVs  = [ DuplicateFact fact   | fact  <- findDups . map factName $ facts ]
+           dupColVs   = [ DuplicateColumn tableName col
                           | Table{..} <- tables
                           , col       <- findDups . map columnName $ tableColumns ]
-       let dupDimVs   = facts
+           dupDimVs   = facts
                         >>- concatMap (dimColumnMappings settingDimPrefix)
                         >>> sort
                         >>> groupBy ((==) `on` fst)

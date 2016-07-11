@@ -89,14 +89,14 @@ factTableIndexStatements fact table = do
       tabName              = tableName table <> settingTableNameSuffixTemplate
       dimTimeColName cName = timeUnitColumnName settingDimTableIdColumnName cName settingTimeUnit
 
-      factCols = forMaybe (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
+      factCols   = forMaybe (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
         case factColType of
           DimTime   -> Just [dimTimeColName cName]
           NoDimId   -> Just [cName]
           TenantId  -> Just [cName]
           _         -> Nothing
 
-      dimCols  = [ [ factDimFKIdColumnName settingDimPrefix settingDimTableIdColumnName dimFact dimTable tables ]
+      dimCols    = [ [ factDimFKIdColumnName settingDimPrefix settingDimTableIdColumnName dimFact dimTable tables ]
                    | (dimFact, dimTable) <- allDims ]
 
       tenantCols = [ [cName, dimTimeColName dimTimeCol] | cName <- maybeToList tenantIdCol ]
