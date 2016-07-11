@@ -76,7 +76,7 @@ settingsParser = let Settings {..} = defSettings
                      settingFactsJSONFileName
                      "Name of the output facts json file"
      <*> minorOption "dimensions-json-file"
-                     settingDimensionJSONFileName
+                     settingDimensionsJSONFileName
                      "Name of the output dimensions json file"
      <*> option auto (long "foreign-key-id-coalesce-val"
                       <> hidden

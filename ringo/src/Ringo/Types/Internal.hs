@@ -372,7 +372,7 @@ data Settings = Settings
                   -- | Name of the generated JSON file containing the list of name of the generated fact tables
                 , settingFactsJSONFileName          :: !Text
                   -- | Name of the generated JSON file containing the list of name of the generated dimension tables
-                , settingDimensionJSONFileName      :: !Text
+                , settingDimensionsJSONFileName     :: !Text
                   -- | Value to coalesce the missing foreign key id column values to in the generated fact tables
                 , settingForeignKeyIdCoalesceValue  :: !Int
                   -- | Suffix template for names of all the generated tables
@@ -394,7 +394,7 @@ defSettings = Settings
               , settingFactInfix                  = "_by_"
               , settingDependenciesJSONFileName   = "dependencies.json"
               , settingFactsJSONFileName          = "facts.json"
-              , settingDimensionJSONFileName      = "dimensions.json"
+              , settingDimensionsJSONFileName     = "dimensions.json"
               , settingForeignKeyIdCoalesceValue  = -1
               , settingTableNameSuffixTemplate    = "{{suff}}"
               }
