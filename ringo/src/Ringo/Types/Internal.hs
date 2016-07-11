@@ -141,17 +141,17 @@ instance Show Table where
   show Table {..} =
     unlines $ ("Table " ++ Text.unpack tableName) : map show tableColumns ++ map show tableConstraints
 
--- | Type of 'FactColumnType'.
+-- | Type of a 'FactColumnType'
 data FactColumnKind =
-    FCKNone              -- ^ Type of a FactColumnType without any parameters
-  | FCKTargetTable       -- ^ Type of a FactColumnType with 'factColTargetTable' as the only parameter.
-  | FCKMaybeSourceColumn -- ^ Type of a FactColumnType with 'factColMaybeSourceColumn' as the only parameter.
-  | FCKSourceColumn      -- ^ Type of a FactColumnType with 'factColSourceColumn' as the only parameter.
+    FCKNone              -- ^ A FactColumnType without any parameters
+  | FCKTargetTable       -- ^ A FactColumnType with 'factColTargetTable' as the only parameter
+  | FCKMaybeSourceColumn -- ^ A FactColumnType with 'factColMaybeSourceColumn' as the only parameter
+  | FCKSourceColumn      -- ^ A FactColumnType with 'factColSourceColumn' as the only parameter
 
 #if MIN_VERSION_base(4,9,0)
--- | Type of a fact column.
+-- | Type of a fact column
 #else
--- | Type of a fact column.
+-- | Type of a fact column
 --
 --   'DimTime':
 --   A fact column which contains a time dimension data (e.g. `created_at`). This is not exatracted
@@ -275,7 +275,7 @@ deriving instance Show FactColumn
 
 -- | A fact is a table that records measurements or metrics for a specific event
 --
--- The following represent a set of facts for the same multi-publisher blog system:
+-- The following represents a fact for the same multi-publisher blog system:
 --
 -- >>> :{
 -- let postFact =
@@ -313,7 +313,7 @@ data Fact = Fact
             , factColumns         :: ![FactColumn]
             } deriving (Show)
 
--- | Returns the name of the source column of a fact column
+-- | Returns the name of the optional source column of a fact column
 factSourceColumnName :: FactColumn -> Maybe ColumnName
 factSourceColumnName FactColumn {..} = case factColType of
   DimTime                -> Just factColTargetColumn
@@ -346,36 +346,40 @@ timeUnitToSeconds Week   = 7  * timeUnitToSeconds Day
 
 -- | Global settings for the library
 data Settings = Settings
-                { -- | Prefix for the names of the generated dimension tables
+                { -- | Prefix for the names of the generated dimension tables. Default: "dim_".
                   settingDimPrefix                  :: !Text
-                  -- | Prefix for the names of the generated fact tables
+                  -- | Prefix for the names of the generated fact tables. Default: "fact_".
                 , settingFactPrefix                 :: !Text
-                  -- | Infix for the names of the generated fact tables
+                  -- | Infix for the names of the generated fact tables. Default: "_by_".
                 , settingFactInfix                  :: !Text
-                  -- | Time unit used to summarize the fact table data
+                  -- | Time unit used to summarize the fact table data. Default: 'Minute'.
                 , settingTimeUnit                   :: !TimeUnit
-                  -- | Suffix for the names of the generated average-count fact columns
+                  -- | Suffix for the names of the generated average-count fact columns. Default: "_count".
                 , settingAvgCountColumnSuffix       :: !Text
-                  -- | Suffix for the names of the generated average-sum fact columns
+                  -- | Suffix for the names of the generated average-sum fact columns. Default: "_sum".
                 , settingAvgSumColumnSuffix         :: !Text
-                  -- | Name of the id columns of the generated dimension tables
+                  -- | Name of the id columns of the generated dimension tables. Default: "id".
                 , settingDimTableIdColumnName       :: !Text
-                  -- | Type of the id columns of the generated dimension tables
+                  -- | Type of the id columns of the generated dimension tables. Default: "serial".
                 , settingDimTableIdColumnType       :: !Text
-                  -- | Type of the count fact columns of the generated dimension tables
+                  -- | Type of the count fact columns of the generated dimension tables. Default: "integer".
                 , settingFactCountColumnType        :: !Text
                   -- | Maximum error rate for the hyperloglog algorithm for computing
-                  --   count distinct fact columns of the generated dimension tables
+                  --   count distinct fact columns of the generated dimension tables. Default: 0.05.
                 , settingFactCountDistinctErrorRate :: !Double
-                  -- | Name of the generated JSON file containing the dependency graph
+                  -- | Name of the generated JSON file containing the dependency graph.
+                  --   Default: "dependencies.json".
                 , settingDependenciesJSONFileName   :: !Text
-                  -- | Name of the generated JSON file containing the list of name of the generated fact tables
+                  -- | Name of the generated JSON file containing the list of name of the generated
+                  --   fact tables. Default: "facts.json".
                 , settingFactsJSONFileName          :: !Text
-                  -- | Name of the generated JSON file containing the list of name of the generated dimension tables
+                  -- | Name of the generated JSON file containing the list of name of the generated
+                  --   dimension tables. Default: "dimensions.json".
                 , settingDimensionsJSONFileName     :: !Text
-                  -- | Value to coalesce the missing foreign key id column values to in the generated fact tables
+                  -- | Value to coalesce the missing foreign key id column values to in the generated
+                  --   fact tables. Default: -1.
                 , settingForeignKeyIdCoalesceValue  :: !Int
-                  -- | Suffix template for names of all the generated tables
+                  -- | Suffix template for names of all the generated tables. Default: "{{suff}}".
                 , settingTableNameSuffixTemplate    :: !Text
                 } deriving (Eq, Show)
 
@@ -384,6 +388,7 @@ defSettings :: Settings
 defSettings = Settings
               { settingDimPrefix                  = "dim_"
               , settingFactPrefix                 = "fact_"
+              , settingFactInfix                  = "_by_"
               , settingTimeUnit                   = Minute
               , settingAvgCountColumnSuffix       = "_count"
               , settingAvgSumColumnSuffix         = "_sum"
@@ -391,7 +396,6 @@ defSettings = Settings
               , settingDimTableIdColumnType       = "serial"
               , settingFactCountColumnType        = "integer"
               , settingFactCountDistinctErrorRate = 0.05
-              , settingFactInfix                  = "_by_"
               , settingDependenciesJSONFileName   = "dependencies.json"
               , settingFactsJSONFileName          = "facts.json"
               , settingDimensionsJSONFileName     = "dimensions.json"
@@ -407,9 +411,9 @@ data ValidationError =
   | MissingFact              !TableName
     -- | When referencing a column which is missing from the env
   | MissingColumn            !TableName !ColumnName
-    -- | When referencing a fact which is missing from the env
+    -- | When a fact has no 'DimTime' columns
   | MissingTimeColumn        !TableName
-    -- | When a 'DimTime' fact column of a fact is 'Null'
+    -- | When a 'DimTime' fact column of a fact is nullable
   | MissingNotNullConstraint !TableName !ColumnName
     -- | When the default value of a type is missing from the env
   | MissingTypeDefault       !Text
@@ -456,5 +460,5 @@ data TablePopulationMode = FullPopulation        -- ^ Populating the tables full
                          | IncrementalPopulation -- ^ Populating the tables incrementally
                          deriving (Eq, Show)
 
--- | The dependency graph of the generated tables in the order to be populated
+-- | The dependency graph of the generated tables describing the order in which they have to be populated
 type Dependencies = Map TableName [TableName]
