@@ -16,20 +16,17 @@ import Data.Maybe           (isJust, fromJust)
 import Data.List            (nub, group, groupBy, sort)
 
 import Ringo.Extractor.Internal
-import Ringo.Types
 import Ringo.Types.Internal
 import Ringo.Utils
-
-data RawEnv = RawEnv ![Table] ![Fact] !Settings !TypeDefaults deriving (Show)
 
 checkTableForCol :: Table -> ColumnName -> [ValidationError]
 checkTableForCol tab colName =
   [ MissingColumn (tableName tab) colName |
       not . any ((colName ==) . columnName) . tableColumns $ tab ]
 
-validateTable :: Table -> Reader RawEnv [ValidationError]
+validateTable :: Table -> Reader Env [ValidationError]
 validateTable table = do
-  RawEnv tables _ _ _ <- ask
+  Env tables _ _ _ <- ask
   return . concatMap (checkConstraint tables) . tableConstraints $ table
   where
     checkConstraint _ (PrimaryKey colName)    = checkTableForCol table colName
@@ -42,9 +39,9 @@ validateTable table = do
 
     checkTableForColRefs tab = concatMap (checkTableForCol tab)
 
-validateFact :: Fact -> Reader RawEnv [ValidationError]
+validateFact :: Fact -> Reader Env [ValidationError]
 validateFact Fact {..} = do
-  RawEnv tables _ _ typeDefaults <- ask
+  Env tables _ _ typeDefaults <- ask
   let defaults = Map.keys typeDefaults
   case findTable factTableName tables of
     Nothing    -> return [ MissingTable factTableName ]
@@ -73,7 +70,7 @@ validateFact Fact {..} = do
       return $ tableVs ++ parentVs ++ colVs ++ timeVs ++ notNullVs ++ typeDefaultVs
   where
     checkFactParents fName = do
-      RawEnv _ facts _ _ <- ask
+      Env _ facts _ _ <- ask
       case findFact fName facts of
         Nothing    -> return [ MissingFact fName ]
         Just pFact -> validateFact pFact
@@ -88,25 +85,26 @@ validateFact Fact {..} = do
       _                                  -> []
 
 validateEnv :: [Table] -> [Fact] -> Settings -> TypeDefaults -> Either [ValidationError] Env
-validateEnv tables facts settings@Settings {..} typeDefaults =
-  flip runReader (RawEnv tables facts settings typeDefaults) $ do
-    tableVs <- concat <$> mapM validateTable tables
-    factVs  <- concat <$> mapM validateFact facts
-    let dupTableVs = [ DuplicateTable table | table <- findDups . map tableName $ tables ]
-    let dupFactVs  = [ DuplicateFact fact   | fact  <- findDups . map factName $ facts ]
-    let dupColVs   = [ DuplicateColumn tableName col
-                       | Table{..} <- tables
-                       , col       <- findDups . map columnName $ tableColumns ]
-    let dupDimVs   = facts
-                     >>- concatMap (dimColumnMappings settingDimPrefix)
-                     >>> sort
-                     >>> groupBy ((==) `on` fst)
-                     >>> filter (map snd >>> nub >>> length >>> (/= 1))
-                     >>> map (head >>> fst >>> DuplicateDimension)
-        vs = nub $ tableVs ++ factVs ++ dupTableVs ++ dupFactVs ++ dupColVs ++ dupDimVs
-    if null vs
-      then return . Right $ Env tables facts settings typeDefaults
-      else return . Left  $ vs
+validateEnv tables facts settings@Settings {..} typeDefaults = let
+    env = Env tables facts settings typeDefaults
+  in flip runReader env $ do
+       tableVs <- concat <$> mapM validateTable tables
+       factVs  <- concat <$> mapM validateFact facts
+       let dupTableVs = [ DuplicateTable table | table <- findDups . map tableName $ tables ]
+       let dupFactVs  = [ DuplicateFact fact   | fact  <- findDups . map factName $ facts ]
+       let dupColVs   = [ DuplicateColumn tableName col
+                          | Table{..} <- tables
+                          , col       <- findDups . map columnName $ tableColumns ]
+       let dupDimVs   = facts
+                        >>- concatMap (dimColumnMappings settingDimPrefix)
+                        >>> sort
+                        >>> groupBy ((==) `on` fst)
+                        >>> filter (map snd >>> nub >>> length >>> (/= 1))
+                        >>> map (head >>> fst >>> DuplicateDimension)
+           errors     = nub $ tableVs ++ factVs ++ dupTableVs ++ dupFactVs ++ dupColVs ++ dupDimVs
+       return $ if null errors
+         then Right env
+         else Left errors
   where
     findDups =
       sort >>> group >>> map (head &&& length) >>> filter (snd >>> (> 1)) >>> map fst
