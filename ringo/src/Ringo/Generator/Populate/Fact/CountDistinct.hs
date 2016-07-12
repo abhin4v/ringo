@@ -23,10 +23,10 @@ import Ringo.Generator.Internal
 import Ringo.Generator.Sql
 import Ringo.Types.Internal
 
-factCountDistinctUpdateStatements :: TablePopulationMode -> Fact -> Text -> QueryExpr -> Reader Env [Statement]
+factCountDistinctUpdateStatements :: TablePopulationMode -> Fact -> Text -> QueryExpr -> Reader Config [Statement]
 factCountDistinctUpdateStatements popMode fact groupByColPrefix expr = case expr of
   select@Select {..} -> do
-    Settings {..}         <- asks envSettings
+    Settings {..}         <- asks configSettings
     let extFactTableName  =
           suffixTableName popMode settingTableNameSuffixTemplate
             $ extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
@@ -56,11 +56,11 @@ factCountDistinctUpdateStatements popMode fact groupByColPrefix expr = case expr
 
   _ -> return []
 
-queryExpr :: Fact -> ColumnName -> Maybe ColumnName -> [ColumnName] -> QueryExpr -> Reader Env QueryExpr
+queryExpr :: Fact -> ColumnName -> Maybe ColumnName -> [ColumnName] -> QueryExpr -> Reader Config QueryExpr
 queryExpr fact targetCol sourceCol groupByCols select = case select of
   Select {selSelectList = SelectList _ origSelectItems, ..} -> do
-    Settings {..}      <- asks envSettings
-    tables             <- asks envTables
+    Settings {..}      <- asks configSettings
+    tables             <- asks configTables
 
     let fTableName     = factTableName fact
         fTable         = fromJust . findTable fTableName $ tables
@@ -78,9 +78,9 @@ queryExpr fact targetCol sourceCol groupByCols select = case select of
 
   _ -> error "Must be a Select"
 
-bucketSelectItems :: ColumnName -> ScalarExpr -> Reader Env [SelectItem]
+bucketSelectItems :: ColumnName -> ScalarExpr -> Reader Config [SelectItem]
 bucketSelectItems targetCol unqCol = do
-  Settings {..} <- asks envSettings
+  Settings {..} <- asks configSettings
 
   return [ sia (binop "&" (app "hashtext" [ unqCol ])
                   (num . Text.pack . show $ bucketCount settingFactCountDistinctErrorRate - 1))

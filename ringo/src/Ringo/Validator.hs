@@ -4,7 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-module Ringo.Validator (validateEnv) where
+module Ringo.Validator (validateConfig) where
 
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -24,9 +24,9 @@ checkTableForCol tab colName =
   [ MissingColumn (tableName tab) colName |
       not . any ((colName ==) . columnName) . tableColumns $ tab ]
 
-validateTable :: Table -> Reader Env [ValidationError]
+validateTable :: Table -> Reader Config [ValidationError]
 validateTable table = do
-  Env tables _ _ _ <- ask
+  Config tables _ _ _ <- ask
   return . concatMap (checkConstraint tables) . tableConstraints $ table
   where
     checkConstraint _ (PrimaryKey colName)    = checkTableForCol table colName
@@ -39,9 +39,9 @@ validateTable table = do
 
     checkTableForColRefs tab = concatMap (checkTableForCol tab)
 
-validateFact :: Fact -> Reader Env [ValidationError]
+validateFact :: Fact -> Reader Config [ValidationError]
 validateFact Fact {..} = do
-  Env tables _ _ typeDefaults <- ask
+  Config tables _ _ typeDefaults <- ask
   let defaults = Map.keys typeDefaults
   case findTable factTableName tables of
     Nothing    -> return [ MissingTable factTableName ]
@@ -70,7 +70,7 @@ validateFact Fact {..} = do
       return $ tableVs ++ parentVs ++ colVs ++ timeVs ++ notNullVs ++ typeDefaultVs
   where
     checkFactParents fName = do
-      Env _ facts _ _ <- ask
+      Config _ facts _ _ <- ask
       case findFact fName facts of
         Nothing    -> return [ MissingFact fName ]
         Just pFact -> validateFact pFact
@@ -84,10 +84,10 @@ validateFact Fact {..} = do
       DimId {factColTargetTable = tName} -> maybe [ MissingTable tName ] (const []) $ findTable tName tables
       _                                  -> []
 
-validateEnv :: [Table] -> [Fact] -> Settings -> TypeDefaults -> Either [ValidationError] Env
-validateEnv tables facts settings@Settings {..} typeDefaults = let
-    env = Env tables facts settings typeDefaults
-  in flip runReader env $ do
+validateConfig :: [Table] -> [Fact] -> Settings -> TypeDefaults -> Either [ValidationError] Config
+validateConfig tables facts settings@Settings {..} typeDefaults = let
+    config = Config tables facts settings typeDefaults
+  in flip runReader config $ do
        tableVs <- concat <$> mapM validateTable tables
        factVs  <- concat <$> mapM validateFact facts
        let dupTableVs = [ DuplicateTable table | table <- findDups . map tableName $ tables ]
@@ -103,7 +103,7 @@ validateEnv tables facts settings@Settings {..} typeDefaults = let
                         >>> map (head >>> fst >>> DuplicateDimension)
            errors     = nub $ tableVs ++ factVs ++ dupTableVs ++ dupFactVs ++ dupColVs ++ dupDimVs
        return $ if null errors
-         then Right env
+         then Right config
          else Left errors
   where
     findDups =

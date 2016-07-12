@@ -18,11 +18,11 @@ module Ringo.Types
   , TimeUnit(..)
   , timeUnitName
   , timeUnitToSeconds
-  , Env
-  , envTables
-  , envFacts
-  , envSettings
-  , envTypeDefaults
+  , Config
+  , configTables
+  , configFacts
+  , configSettings
+  , configTypeDefaults
   , Settings(..)
   , defSettings
   , TypeDefaults

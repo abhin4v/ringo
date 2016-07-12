@@ -403,27 +403,27 @@ defSettings = Settings
               , settingTableNameSuffixTemplate    = "{{suff}}"
               }
 
--- | Errors possible while validating the environment
+-- | Errors possible while validating the config
 data ValidationError =
-    -- | When referencing a table which is missing from the env
+    -- | When referencing a table which is missing from the config
     MissingTable             !TableName
-    -- | When referencing a fact which is missing from the env
+    -- | When referencing a fact which is missing from the config
   | MissingFact              !TableName
-    -- | When referencing a column which is missing from the env
+    -- | When referencing a column which is missing from the config
   | MissingColumn            !TableName !ColumnName
     -- | When a fact has no 'DimTime' columns
   | MissingTimeColumn        !TableName
     -- | When a 'DimTime' fact column of a fact is nullable
   | MissingNotNullConstraint !TableName !ColumnName
-    -- | When the default value of a type is missing from the env
+    -- | When the default value of a type is missing from the config
   | MissingTypeDefault       !Text
-    -- | When there are multiple tables with the same name in the env
+    -- | When there are multiple tables with the same name in the config
   | DuplicateTable           !TableName
-    -- | When there are multiple facts with the same name in the env
+    -- | When there are multiple facts with the same name in the config
   | DuplicateFact            !TableName
-    -- | When there are multiple columns with the same name in a table in the env
+    -- | When there are multiple columns with the same name in a table in the config
   | DuplicateColumn          !TableName !ColumnName
-    -- | When there are multiple dimensions with the same name in the env
+    -- | When there are multiple dimensions with the same name in the config
   | DuplicateDimension       !TableName
   deriving (Eq, Show)
 
@@ -431,29 +431,29 @@ data ValidationError =
 --   the generated dimension and fact tables
 type TypeDefaults = Map Text Text
 
--- | The environment for the library to compute in
-data Env = Env
-           { _envTables       :: ![Table]
-           , _envFacts        :: ![Fact]
-           , _envSettings     :: !Settings
-           , _envTypeDefaults :: !TypeDefaults
-           } deriving (Show)
+-- | The config for the library
+data Config = Config
+              { _configTables       :: ![Table]
+              , _configFacts        :: ![Fact]
+              , _configSettings     :: !Settings
+              , _configTypeDefaults :: !TypeDefaults
+              } deriving (Show)
 
--- | Return the list of source tables from the env
-envTables       :: Env -> [Table]
-envTables       = _envTables
+-- | Return the list of source tables from the config
+configTables       :: Config -> [Table]
+configTables       = _configTables
 
--- | Return the list of facts to be generated from the env
-envFacts        :: Env -> [Fact]
-envFacts        = _envFacts
+-- | Return the list of facts to be generated from the config
+configFacts        :: Config -> [Fact]
+configFacts        = _configFacts
 
--- | Return the settings from the env
-envSettings     :: Env -> Settings
-envSettings     = _envSettings
+-- | Return the settings from the config
+configSettings     :: Config -> Settings
+configSettings     = _configSettings
 
--- | Return the defaults for the SQL types from the env
-envTypeDefaults :: Env -> TypeDefaults
-envTypeDefaults = _envTypeDefaults
+-- | Return the defaults for the SQL types from the config
+configTypeDefaults :: Config -> TypeDefaults
+configTypeDefaults = _configTypeDefaults
 
 -- | The mode for population of the generated tables; used to switch the SQL for table population
 data TablePopulationMode = FullPopulation        -- ^ Populating the tables fully, starting with empty ones

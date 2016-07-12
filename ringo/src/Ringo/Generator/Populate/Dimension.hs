@@ -20,19 +20,19 @@ import Ringo.Generator.Internal
 import Ringo.Generator.Sql
 import Ringo.Types.Internal
 
-dimensionTablePopulationSQL :: TablePopulationMode -> Fact -> TableName -> Reader Env Text
+dimensionTablePopulationSQL :: TablePopulationMode -> Fact -> TableName -> Reader Config Text
 dimensionTablePopulationSQL popMode fact dimTableName =
   ppStatement <$> dimensionTablePopulationStatement popMode fact dimTableName
 
-dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Env Statement
+dimensionTablePopulationStatement :: TablePopulationMode -> Fact -> TableName -> Reader Config Statement
 dimensionTablePopulationStatement popMode fact dimTableName = do
-  Settings {..}   <- asks envSettings
+  Settings {..}   <- asks configSettings
   let colMapping  = dimColumnMapping settingDimPrefix fact dimTableName
   let insertTable = suffixTableName popMode settingTableNameSuffixTemplate dimTableName
   selectQ         <- makeSelectQuery popMode fact dimTableName colMapping
   return $ insert insertTable (map fst colMapping) selectQ
 
-makeSelectQuery :: TablePopulationMode -> Fact -> TableName -> [(ColumnName, ColumnName)] -> Reader Env QueryExpr
+makeSelectQuery :: TablePopulationMode -> Fact -> TableName -> [(ColumnName, ColumnName)] -> Reader Config QueryExpr
 makeSelectQuery popMode fact dimTableName colMapping = do
   selectList <- makeSelectList fact colMapping
   let selectQ = makeSelect
@@ -46,10 +46,10 @@ makeSelectQuery popMode fact dimTableName colMapping = do
     FullPopulation        -> selectQ
     IncrementalPopulation -> makeIncSelectQuery selectQ dimTableName colMapping
 
-makeSelectList :: Fact -> [(ColumnName, ColumnName)] -> Reader Env SelectList
+makeSelectList :: Fact -> [(ColumnName, ColumnName)] -> Reader Config SelectList
 makeSelectList fact colMapping = do
-  tables        <- asks envTables
-  defaults      <- asks envTypeDefaults
+  tables        <- asks configTables
+  defaults      <- asks configTypeDefaults
   let factTable = fromJust $ findTable (factTableName fact) tables
   return $ sl [ flip sia (nmc cName) $ coalesceColumn defaults (factTableName fact) col
                 | (_, cName) <- colMapping

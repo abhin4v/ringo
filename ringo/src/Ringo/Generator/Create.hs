@@ -23,9 +23,9 @@ import Ringo.Generator.Sql
 import Ringo.Types.Internal
 import Ringo.Utils
 
-tableDefinitionStatements :: Table -> Reader Env [Statement]
+tableDefinitionStatements :: Table -> Reader Config [Statement]
 tableDefinitionStatements Table {..} = do
-  Settings {..} <- asks envSettings
+  Settings {..} <- asks configSettings
   let tabName  = tableName <> settingTableNameSuffixTemplate
 
       tableSQL = CreateTable ea (name tabName) (map columnDefnSQL tableColumns) [] Nothing NoReplace
@@ -48,22 +48,22 @@ tableDefinitionStatements Table {..} = do
 
   return $ tableSQL : map constraintDefnSQL tableConstraints
 
-tableDefinitionSQL :: Table -> (Table -> Reader Env [Statement]) -> Reader Env [Text]
+tableDefinitionSQL :: Table -> (Table -> Reader Config [Statement]) -> Reader Config [Text]
 tableDefinitionSQL table indexFn = do
   ds <- map ppStatement <$> tableDefinitionStatements table
   is <- map (\st -> ppStatement st <> ";\n") <$> indexFn table
   return $ ds ++ is
 
-dimensionTableDefinitionSQL :: Table -> Reader Env [Text]
+dimensionTableDefinitionSQL :: Table -> Reader Config [Text]
 dimensionTableDefinitionSQL table = tableDefinitionSQL table dimensionTableIndexStatements
 
-dimensionTableDefinitionStatements :: Table -> Reader Env [Statement]
+dimensionTableDefinitionStatements :: Table -> Reader Config [Statement]
 dimensionTableDefinitionStatements table =
   (++) <$> tableDefinitionStatements table <*> dimensionTableIndexStatements table
 
-dimensionTableIndexStatements :: Table -> Reader Env [Statement]
+dimensionTableIndexStatements :: Table -> Reader Config [Statement]
 dimensionTableIndexStatements Table {..} = do
-  Settings {..} <- asks envSettings
+  Settings {..} <- asks configSettings
   let tabName        = tableName <> settingTableNameSuffixTemplate
       tablePKColName = head [ cName | PrimaryKey cName <- tableConstraints ]
       nonPKColNames  = [ cName | Column cName _ _ <- tableColumns, cName /= tablePKColName ]
@@ -71,18 +71,18 @@ dimensionTableIndexStatements Table {..} = do
   return [ CreateIndexTSQL ea (nmc "") (name tabName) [nmc cName]
            | cName <- nonPKColNames, length nonPKColNames > 1 ]
 
-factTableDefinitionSQL :: Fact -> Table -> Reader Env [Text]
+factTableDefinitionSQL :: Fact -> Table -> Reader Config [Text]
 factTableDefinitionSQL fact table = tableDefinitionSQL table (factTableIndexStatements fact)
 
-factTableDefinitionStatements :: Fact -> Table -> Reader Env [Statement]
+factTableDefinitionStatements :: Fact -> Table -> Reader Config [Statement]
 factTableDefinitionStatements fact table =
   (++) <$> tableDefinitionStatements table <*> factTableIndexStatements fact table
 
-factTableIndexStatements :: Fact -> Table -> Reader Env [Statement]
+factTableIndexStatements :: Fact -> Table -> Reader Config [Statement]
 factTableIndexStatements fact table = do
   allDims       <- extractAllDimensionTables fact
-  Settings {..} <- asks envSettings
-  tables        <- asks envTables
+  Settings {..} <- asks configSettings
+  tables        <- asks configTables
 
   let dimTimeCol           = head [ cName | FactColumn cName DimTime <- factColumns fact ]
       tenantIdCol          = listToMaybe [ cName | FactColumn cName TenantId <- factColumns fact ]

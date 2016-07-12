@@ -27,22 +27,22 @@ main = do
   case result of
     Left err                        -> putStrLn err >> exitFailure
     Right (tables, facts, defaults) ->
-      case makeEnv tables facts progSettings defaults of
-        Left errors -> mapM_ print errors           >> exitFailure
-        Right env   -> writeFiles progOutputDir env >> exitSuccess
+      case makeConfig tables facts progSettings defaults of
+        Left errors  -> mapM_ print errors              >> exitFailure
+        Right config -> writeFiles progOutputDir config >> exitSuccess
 
-writeFiles :: FilePath -> Env -> IO ()
-writeFiles outputDir env = do
-  let Settings{..} = envSettings env
+writeFiles :: FilePath -> Config -> IO ()
+writeFiles outputDir config = do
+  let Settings{..} = configSettings config
 
-  forM_ (makeSQLs env dimTables factTables) $ \(sqlType, table, sql) -> do
+  forM_ (makeSQLs config dimTables factTables) $ \(sqlType, table, sql) -> do
     let dirName = outputDir </> map toLower (show sqlType)
     createDirectoryIfMissing True dirName
     writeFile (dirName </> Text.unpack table <.> "sql") sql
 
   BS.writeFile (outputDir </> Text.unpack settingDependenciesJSONFileName)
     . encode
-    . foldl (\acc -> Map.union acc . extractDependencies env) Map.empty
+    . foldl (\acc -> Map.union acc . extractDependencies config) Map.empty
     $ facts
 
   BS.writeFile (outputDir </> Text.unpack settingDimensionsJSONFileName) . encode $
@@ -51,31 +51,33 @@ writeFiles outputDir env = do
   BS.writeFile (outputDir </> Text.unpack settingFactsJSONFileName) . encode $
     [ tableName table | (_, table) <- factTables ]
   where
-    facts      = envFacts env
-    tables     = envTables env
+    facts      = configFacts config
+    tables     = configTables config
 
-    dimTables  = [ (fact, extractDimensionTables env fact) | fact <- facts ]
-    factTables = [ (fact, extractFactTable env fact)       | fact <- facts, factTablePersistent fact ]
+    dimTables  = [ (fact, extractDimensionTables config fact) | fact <- facts ]
+    factTables = [ (fact, extractFactTable config fact)       | fact <- facts, factTablePersistent fact ]
 
-makeSQLs :: Env -> [(Fact, [Table])] -> [(Fact, Table)] -> [(SQLType, TableName, String)]
-makeSQLs env dimTables factTables = let
+makeSQLs :: Config -> [(Fact, [Table])] -> [(Fact, Table)] -> [(SQLType, TableName, String)]
+makeSQLs config dimTables factTables = let
+    tables = configTables config
+
     dimTableDefinitionSQLs =
-      [ (Create, tableName table, unlines . map sqlStr $ dimensionTableDefinitionSQL env table)
+      [ (Create, tableName table, unlines . map Text.unpack $ dimensionTableDefinitionSQL config table)
          | (_, tabs) <- dimTables
          , table     <- tabs
          , table `notElem` tables ]
 
     factTableDefinitionSQLs =
-      [ (Create , tableName table, unlines . map sqlStr $ factTableDefinitionSQL env fact table)
+      [ (Create , tableName table, unlines . map Text.unpack $ factTableDefinitionSQL config fact table)
         | (fact, table) <- factTables ]
 
     dimTablePopulationSQLs typ gen  =
-      [ (typ , tableName table, sqlStr $ gen env fact (tableName table))
+      [ (typ , tableName table, Text.unpack $ gen config fact (tableName table))
         | (fact, tabs) <- dimTables
         , table        <- tabs
         , table `notElem` tables ]
 
-    factTablePopulationSQLs typ gen = [ (typ, tableName table, unlines . map sqlStr  $ gen env fact)
+    factTablePopulationSQLs typ gen = [ (typ, tableName table, unlines . map Text.unpack $ gen config fact)
                                         | (fact, table) <- factTables ]
   in concat [ dimTableDefinitionSQLs
             , factTableDefinitionSQLs
@@ -84,6 +86,3 @@ makeSQLs env dimTables factTables = let
             , factTablePopulationSQLs FullRefresh $ factTablePopulationSQL FullPopulation
             , factTablePopulationSQLs IncRefresh  $ factTablePopulationSQL IncrementalPopulation
             ]
-  where
-    tables = envTables env
-    sqlStr = Text.unpack

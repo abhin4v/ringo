@@ -68,10 +68,10 @@ idColTypeToFKIdColType typ = case Text.toLower typ of
   "bigserial"   -> "bigint"
   _             -> typ
 
-extractDimensionTables :: Fact -> Reader Env [Table]
+extractDimensionTables :: Fact -> Reader Config [Table]
 extractDimensionTables fact = do
-  settings  <- asks envSettings
-  tables    <- asks envTables
+  settings  <- asks configSettings
+  tables    <- asks configTables
   return $ dimTablesFromIds tables fact ++ dimTablesFromVals settings tables fact
 
 dimTablesFromIds :: [Table] -> Fact -> [Table]
@@ -112,10 +112,10 @@ dimTablesFromVals Settings {..} tables fact =
       column <- findColumn factColTargetColumn tableColumns
       return (factColTargetTable, [column])
 
-extractAllDimensionTables :: Fact -> Reader Env [(Fact, Table)]
+extractAllDimensionTables :: Fact -> Reader Config [(Fact, Table)]
 extractAllDimensionTables fact = do
   myDims     <- map (fact,) <$> extractDimensionTables fact
   parentDims <- concat <$> mapM extract (factParentNames fact)
   return . nubBy ((==) `on` snd) $ myDims ++ parentDims
   where
-    extract fName = asks envFacts >>= extractAllDimensionTables . fromJust . findFact fName
+    extract fName = asks configFacts >>= extractAllDimensionTables . fromJust . findFact fName

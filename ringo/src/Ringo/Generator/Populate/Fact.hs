@@ -57,7 +57,7 @@ $$
 LANGUAGE 'plpgsql' IMMUTABLE;
 |]
 
-factTablePopulationSQL :: TablePopulationMode -> Fact -> Reader Env [Text]
+factTablePopulationSQL :: TablePopulationMode -> Fact -> Reader Config [Text]
 factTablePopulationSQL popMode fact = do
   stmts <- factTablePopulationStatements popMode fact
   return $ case stmts of
@@ -65,9 +65,9 @@ factTablePopulationSQL popMode fact = do
     [i]  -> [ ppStatement i ]
     i:us -> [ ppStatement i, ilog2FunctionString ] ++ map ppStatement us
 
-factTablePopulationStatements :: TablePopulationMode -> Fact -> Reader Env [Statement]
+factTablePopulationStatements :: TablePopulationMode -> Fact -> Reader Config [Statement]
 factTablePopulationStatements popMode fact = do
-  Settings {..}        <- asks envSettings
+  Settings {..}        <- asks configSettings
   allDims              <- extractAllDimensionTables fact
   selExprs             <- selectExprs popMode fact allDims groupByColPrefix
   popQueryExpr         <- populateQueryExpr popMode fact allDims selExprs groupByColPrefix
@@ -85,7 +85,7 @@ selectExprs :: TablePopulationMode
             -> Fact
             -> [(Fact, Table)]
             -> Text
-            -> Reader Env [(ColumnName, (ScalarExpr, NameComponent), Bool)]
+            -> Reader Config [(ColumnName, (ScalarExpr, NameComponent), Bool)]
 selectExprs popMode fact allDims groupByColPrefix = do
   factSelExprs <- factColumnSelectExprs fact
   dimSelExprs  <- dimColumnSelectExprs popMode allDims
@@ -93,11 +93,11 @@ selectExprs popMode fact allDims groupByColPrefix = do
   return [ (cName, (expr, nmc $ groupByColPrefix <> cName), addToGroupBy)
            | (cName, expr, addToGroupBy) <- factSelExprs ++ dimSelExprs ]
 
-factColumnSelectExprs :: Fact -> Reader Env [(ColumnName, ScalarExpr, Bool)]
+factColumnSelectExprs :: Fact -> Reader Config [(ColumnName, ScalarExpr, Bool)]
 factColumnSelectExprs fact = do
-  Settings {..}    <- asks envSettings
-  tables           <- asks envTables
-  typeDefaults     <- asks envTypeDefaults
+  Settings {..}    <- asks configSettings
+  tables           <- asks configTables
+  typeDefaults     <- asks configTypeDefaults
   let fTableName   = factTableName fact
       fTable       = fromJust . findTable fTableName $ tables
       dimIdColName = settingDimTableIdColumnName
@@ -135,11 +135,11 @@ dimIdColumnSelectExpr fTableName fTable typeDefaults cName =
   let sCol = fromJust . findColumn cName $ tableColumns fTable
   in (cName, coalesceColumn typeDefaults fTableName sCol, True)
 
-dimColumnSelectExprs :: TablePopulationMode -> [(Fact, Table)] -> Reader Env [(ColumnName, ScalarExpr, Bool)]
+dimColumnSelectExprs :: TablePopulationMode -> [(Fact, Table)] -> Reader Config [(ColumnName, ScalarExpr, Bool)]
 dimColumnSelectExprs popMode allDims = do
-  settings@Settings {..} <- asks envSettings
-  tables                 <- asks envTables
-  typeDefaults           <- asks envTypeDefaults
+  settings@Settings {..} <- asks configSettings
+  tables                 <- asks configTables
+  typeDefaults           <- asks configTypeDefaults
   let dimIdColName       = settingDimTableIdColumnName
 
   return $ for allDims $ \(dimFact, factTable@Table {tableName}) -> let
@@ -172,10 +172,10 @@ populateQueryExpr :: TablePopulationMode
                   -> [(Fact, Table)]
                   -> [(ColumnName, (ScalarExpr, NameComponent), Bool)]
                   -> Text
-                  -> Reader Env QueryExpr
+                  -> Reader Config QueryExpr
 populateQueryExpr popMode fact allDims selExprs groupByColPrefix = do
-  Settings {..}   <- asks envSettings
-  tables          <- asks envTables
+  Settings {..}   <- asks configSettings
+  tables          <- asks configTables
   let fTableName  = factTableName fact
       fTable      = fromJust . findTable fTableName $ tables
       joinClauses =

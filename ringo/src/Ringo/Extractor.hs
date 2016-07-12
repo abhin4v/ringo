@@ -23,8 +23,8 @@ import Ringo.Extractor.Internal
 import Ringo.Types.Internal
 import Ringo.Utils
 
-extractFactTable ::  Fact -> Reader Env Table
-extractFactTable fact = mkTable <$> asks envSettings
+extractFactTable ::  Fact -> Reader Config Table
+extractFactTable fact = mkTable <$> asks configSettings
                                 <*> extractColumns       fact
                                 <*> extractFKColumns     fact
                                 <*> extractUKColumnNames fact
@@ -36,10 +36,10 @@ extractFactTable fact = mkTable <$> asks envSettings
             , tableConstraints = [ UniqueKey $ ukColNames ++ map columnName fkColumns ]
             }
 
-extractColumns :: Fact -> Reader Env [Column]
+extractColumns :: Fact -> Reader Config [Column]
 extractColumns fact = do
-  Settings {..} <- asks envSettings
-  tables        <- asks envTables
+  Settings {..} <- asks configSettings
+  tables        <- asks configTables
   let table     =  fromJust . findTable (factTableName fact) $ tables
 
   let sourceColumn cName                     = fromJust . findColumn cName . tableColumns $ table
@@ -63,20 +63,20 @@ extractColumns fact = do
         ]
       _                      -> []
 
-extractFKColumns :: Fact -> Reader Env [Column]
+extractFKColumns :: Fact -> Reader Config [Column]
 extractFKColumns fact = do
   allDims       <- extractAllDimensionTables fact
-  Settings {..} <- asks envSettings
-  tables        <- asks envTables
+  Settings {..} <- asks configSettings
+  tables        <- asks configTables
 
   return $ for allDims $ \(dimFact, dimTable) ->
     let colName = factDimFKIdColumnName settingDimPrefix settingDimTableIdColumnName dimFact dimTable tables
         colType = idColTypeToFKIdColType settingDimTableIdColumnType
     in Column colName colType NotNull
 
-extractUKColumnNames :: Fact -> Reader Env [ColumnName]
+extractUKColumnNames :: Fact -> Reader Config [ColumnName]
 extractUKColumnNames fact = do
-  Settings {..} <- asks envSettings
+  Settings {..} <- asks configSettings
   return $ forMaybe (factColumns fact) $ \FactColumn {factColTargetColumn = cName, ..} ->
       case factColType of
           DimTime  -> Just $ timeUnitColumnName settingDimTableIdColumnName cName settingTimeUnit
@@ -84,13 +84,13 @@ extractUKColumnNames fact = do
           TenantId -> Just cName
           _        -> Nothing
 
-extractDependencies :: Fact -> Reader Env Dependencies
+extractDependencies :: Fact -> Reader Config Dependencies
 extractDependencies fact = Map.union <$> extractFactDeps fact <*> extractDimensionDeps fact
 
-extractFactDeps :: Fact -> Reader Env Dependencies
+extractFactDeps :: Fact -> Reader Config Dependencies
 extractFactDeps fact = do
-  Settings{..} <- asks envSettings
-  facts        <- asks envFacts
+  Settings{..} <- asks configSettings
+  facts        <- asks configFacts
 
   let extractedTable =
         extractedFactTableName settingFactPrefix settingFactInfix (factName fact) settingTimeUnit
@@ -112,8 +112,8 @@ extractFactDeps fact = do
   where
     parentFacts fct facts = [ fromJust $ findFact pf facts | pf <- factParentNames fct ]
 
-extractDimensionDeps :: Fact -> Reader Env Dependencies
+extractDimensionDeps :: Fact -> Reader Config Dependencies
 extractDimensionDeps fact = do
-  Settings{..} <- asks envSettings
+  Settings{..} <- asks configSettings
   return $ Map.fromList [ (settingDimPrefix <> table, [factTableName fact])
                           | FactColumn {factColType = DimVal table} <- factColumns fact ]
