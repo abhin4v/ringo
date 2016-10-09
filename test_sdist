@@ -1,0 +1,10 @@
+#!/bin/sh
+
+SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}');
+cd $(stack $ARGS path | grep dist-dir | awk '{print $2}');
+if [ -f "$SRC_TGZ" ]; then
+  cabal install "$SRC_TGZ";
+else
+  echo "expected '$SRC_TGZ' not found";
+  exit 1;
+fi

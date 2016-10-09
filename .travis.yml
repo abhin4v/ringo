@@ -34,26 +34,19 @@ before_install:
 # around some quirks in Travis's terminal implementation.
 script:
 - stack $ARGS --no-terminal --install-ghc install --test --fast
-- cat << EOF > test_sdist.sh
-  export SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}');
-  cd $(stack path | grep dist-dir | awk '{print $2}');
-  if [ -f "$SRC_TGZ" ]; then
-    cabal install "$SRC_TGZ";
-  else
-    echo "expected '$SRC_TGZ' not found";
-    exit 1;
-  fi
-  EOF
-
-- stack sdist ringo-core
-- cd ringo-core;
-- sh ../test_sdist.sh
-- cd $(stack path | grep project-root | awk '{print $2}')
-- stack sdist ringo
+- stack $ARGS --no-terminal install cabal-install happy
+- cabal update
+- export PATH=$(stack $ARGS path | grep compiler-bin | awk '{print $2}'):$PATH
+- stack $ARGS sdist ringo-core
+- cd ringo-core
+- ../test_sdist
+- cd $(stack $ARGS path | grep project-root | awk '{print $2}')
+- stack $ARGS sdist ringo
 - cd ringo
-- sh ../test_sdist.sh
+- ../test_sdist
 
 # Caching so the next build will be fast too.
 cache:
   directories:
   - $HOME/.stack
+  - $HOME/.cabal
