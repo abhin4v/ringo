@@ -1,7 +1,7 @@
-name:                ringo
+name:                ringo-core
 version:             0.1.0.0
 synopsis:            OLTP to OLAP schema transformer for Postgres
-description:         Tool to transform Postgres OLTP schemas to OLAP star schemas automatically
+description:         Library to transform Postgres OLTP schemas to OLAP star schemas automatically
 homepage:            http://github.com/abhin4v/ringo
 license:             MIT
 license-file:        LICENSE
@@ -40,13 +40,13 @@ library
                        -fno-warn-orphans -funbox-strict-fields -O2
   default-language:    Haskell2010
 
-test-suite ringo-test
+test-suite ringo-core-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test, src
   main-is:             doctests.hs
   if impl(ghc >= 7.10)
     build-depends:       base
-                       , ringo
+                       , ringo-core
                        , doctest >=0.9 && <0.12
   else
     buildable: False
