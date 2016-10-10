@@ -28,22 +28,18 @@ before_install:
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+- stack $ARGS --no-terminal --install-ghc install cabal-install happy
+- cabal update
 
 # This line does all of the work: installs GHC if necessary, build the library,
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
 script:
-- stack $ARGS --no-terminal --install-ghc install --test --fast
-- stack $ARGS --no-terminal install cabal-install happy
-- cabal update
+- stack $ARGS --no-terminal install --test --fast
 - export PATH=$(stack $ARGS path | grep compiler-bin | awk '{print $2}'):$PATH
-- stack $ARGS sdist ringo-core
-- cd ringo-core
-- ../test_sdist
+- stack $ARGS sdist ringo-core && cd ringo-core && ../test_sdist
 - cd $(stack $ARGS path | grep project-root | awk '{print $2}')
-- stack $ARGS sdist ringo
-- cd ringo
-- ../test_sdist
+- stack $ARGS sdist ringo && cd ringo && ../test_sdist
 
 # Caching so the next build will be fast too.
 cache:
