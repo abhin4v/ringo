@@ -1,7 +1,7 @@
 name:                ringo
 version:             0.1.0.0
-synopsis:            OLTP to OLAP schema transformer
-description:         Tool to transform OLTP schemas to OLAP star schemas automatically
+synopsis:            OLTP to OLAP schema transformer for Postgres
+description:         Tool to transform Postgres OLTP schemas to OLAP star schemas automatically
 homepage:            http://github.com/abhin4v/ringo
 license:             MIT
 license-file:        LICENSE

@@ -37,7 +37,7 @@ library
                        raw-strings-qq >=1.0 && <1.2,
                        hssqlppp       ==0.6.0
   ghc-options:         -Wall -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
-                       -fno-warn-orphans -funbox-strict-fields -O2
+                       -fno-warn-orphans -funbox-strict-fields
   default-language:    Haskell2010
 
 test-suite ringo-core-test
