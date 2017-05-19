@@ -11,6 +11,7 @@ import qualified Distribution.CurrentPackageDescription as P
 import qualified Distribution.Text as DText
 
 import Data.List           (intercalate)
+import Data.Monoid         ((<>))
 import Options.Applicative
 import System.Environment  (getProgName)
 
