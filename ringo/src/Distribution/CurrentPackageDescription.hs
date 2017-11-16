@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE CPP #-}
 
 module Distribution.CurrentPackageDescription
   ( currentPackageDescription
@@ -23,7 +24,11 @@ currentPackageDescription = fmap packageDescription $ do
   dir <- getCurrentDirectory
   cs  <- cabalFiles dir
   case cs of
+#if MIN_VERSION_base(4,10,0)
+    (c:_) -> readGenericPackageDescription silent c
+#else
     (c:_) -> readPackageDescription silent c
+#endif
     []    -> error $ "Couldn't find a cabal file in the current working directory (" ++ dir ++ ")"
 
 cabalFiles :: FilePath -> IO [FilePath]
