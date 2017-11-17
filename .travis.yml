@@ -47,3 +47,7 @@ cache:
   directories:
   - $HOME/.stack
   - $HOME/.cabal
+  - $HOME/.ghc
+  - .stack-work
+  - ringo/.stack-work
+  - ringo-core/.stack-work
