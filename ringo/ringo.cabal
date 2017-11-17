@@ -16,8 +16,7 @@ cabal-version:       >=1.18
 executable ringo
   hs-source-dirs:      src
   other-modules:       Ringo.ArgParser,
-                       Ringo.InputParser,
-                       Distribution.CurrentPackageDescription
+                       Ringo.InputParser
   main-is:             Main.hs
   build-depends:       base                 >=4.7     && <5,
                        text                 >=1.2     && <1.3,
@@ -30,8 +29,6 @@ executable ringo
                        directory            >=1.2     && <1.4,
                        filepath             >=1.3     && <1.5,
                        aeson                >=0.8     && <1.3,
-                       Cabal                >=1.18    && <2.1,
-                       template-haskell     >=2.9     && <2.13,
                        ringo-core
   ghc-options:         -Wall -fwarn-incomplete-uni-patterns -fno-warn-unused-do-bind
                        -fno-warn-orphans -funbox-strict-fields -O2

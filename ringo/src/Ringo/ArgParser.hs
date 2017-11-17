@@ -1,14 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Ringo.ArgParser (ProgArgs(..), parseArgs) where
 
 import qualified Data.Text as Text
-import qualified Distribution.Package as P
-import qualified Distribution.PackageDescription as P
-import qualified Distribution.CurrentPackageDescription as P
-import qualified Distribution.Text as DText
 
 import Data.List           (intercalate)
 import Data.Monoid         ((<>))
@@ -109,9 +104,10 @@ progArgsParser =
 versionParser :: String -> Parser (a -> a)
 versionParser progName = infoOption (progName ++ " " ++ version)
   (long "version"
+   <> short 'v'
    <> help "Print version information")
   where
-    version = $(P.getField (DText.display . P.pkgVersion . P.package))
+    version = "0.1.0"
 
 parseArgs :: IO ProgArgs
 parseArgs = do
@@ -119,6 +115,6 @@ parseArgs = do
   execParser $
     info (helper <*> versionParser progName <*> progArgsParser)
          (fullDesc
-          <> progDesc $(P.getField P.description)
-          <> header (progName ++ " - " ++ $(P.getField P.synopsis))
-          <> footer ("© " ++ $(P.getField P.copyright) ++ ". " ++ $(P.getField P.homepage)))
+          <> progDesc "Tool to transform Postgres OLTP schemas to OLAP star schemas automatically"
+          <> header (progName ++ " - OLTP to OLAP schema transformer for Postgres")
+          <> footer "© 2015-2017 Quintype Inc, Nilenso Software LLP, Abhinav Sarkar. http://github.com/abhin4v/ringo")
