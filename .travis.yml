@@ -4,12 +4,6 @@ sudo: false
 # Choose a lightweight base image; we provide our own build tools.
 language: c
 
-# GHC depends on GMP. You can add other dependencies here as well.
-addons:
-  apt:
-    packages:
-    - libgmp-dev
-
 # The different configurations we want to test. You could also do things like
 # change flags or use --stack-yaml to point to a different file.
 env:
@@ -36,11 +30,20 @@ before_install:
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
 script:
-- stack $ARGS --no-terminal install --test --fast
 - export PATH=$(stack $ARGS path | grep compiler-bin | awk '{print $2}'):$PATH
+- export DIST_DIR=$(stack $ARGS path | grep dist-dir | awk '{print $2}')
+- export ARCH=$(echo $DIST_DIR | cut -d '/' -f 3)
+- export GHC_VER=$(ghc --version | awk '{print $8}')
+- stack $ARGS --no-terminal install --test --fast
 - stack $ARGS sdist ringo-core && cd ringo-core && ../test_sdist
-- cd $(stack $ARGS path | grep project-root | awk '{print $2}')
+- cd $TRAVIS_BUILD_DIR
 - stack $ARGS sdist ringo && cd ringo && ../test_sdist
+
+before_cache:
+- cd $TRAVIS_BUILD_DIR
+- rm -rf .stack-work/logs;
+- rm -rf $HOME/.cabal/logs;
+- rm -rf $HOME/.cabal/lib/$ARCH-ghc-$GHC_VER/ringo*
 
 # Caching so the next build will be fast too.
 cache:

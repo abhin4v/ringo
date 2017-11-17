@@ -1,9 +1,14 @@
 #!/bin/sh
 
+set -e
 SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}');
-cd $(stack $ARGS path | grep dist-dir | awk '{print $2}');
+cd $DIST_DIR;
 if [ -f "$SRC_TGZ" ]; then
+  cabal install --only-dependencies "$SRC_TGZ";
+  cp $HOME/.ghc/$ARCH-$GHC_VER/package.conf.d/package.cache package.cache.bak
   cabal install "$SRC_TGZ";
+  rm "$SRC_TGZ";
+  mv package.cache.bak $HOME/.ghc/$ARCH-$GHC_VER/package.conf.d/package.cache
 else
   echo "expected '$SRC_TGZ' not found";
   exit 1;
